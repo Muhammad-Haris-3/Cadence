@@ -114,7 +114,24 @@ tracking is on.
 - **Double-click opens the dashboard.** The most common intent should not
   require reading a menu.
 
-## 7. Information Hierarchy
+## 7. The Written Summary
+
+Prose among figures, so it is set apart by measure and rule rather than by a box.
+
+- **A left rule, not a card.** Two pixels of `--border-subtle` and generous
+  padding. The page has no boxes anywhere else and gains none here.
+- **Prose measure**, capped near 62 characters, with relaxed line height. Full
+  width is for tables; a paragraph read at table width is a paragraph nobody
+  finishes.
+- **Set in the functional face, not the display one.** Caveat is for headings and
+  labels; several sentences of it would be charming once and tiring daily.
+- **Attribution is always shown** -- "Written by Claude" or "Written by hand" --
+  in the same muted label style as section headings. A reader should never have
+  to wonder whether a judgement about their day was made by a person or a model.
+- **It sits above the data**, because it is the interpretation the rest of the
+  page supports, and it is omitted entirely when absent.
+
+## 8. Information Hierarchy
 
 The report is ordered by how a person actually asks about their day.
 
@@ -128,7 +145,7 @@ The report is ordered by how a person actually asks about their day.
 Absence of data is rendered as absence, not as zero. A section with nothing to
 report is omitted rather than shown empty.
 
-## 8. Tone of Reported Numbers
+## 9. Tone of Reported Numbers
 
 - **Report, never scold.** No red, no warnings, no streak-breaking language, no
   goals the user did not set. The distraction category is styled as calmly as
@@ -144,7 +161,7 @@ report is omitted rather than shown empty.
   focus is a heuristic and not a measure of worth. A number this easy to
   over-read must carry its own disclaimer on the page, not only in the docs.
 
-## 9. Extension Options Screen Pattern
+## 10. Extension Options Screen Pattern
 
 The one browser-facing surface follows the same restraint.
 

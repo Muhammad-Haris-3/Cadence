@@ -150,6 +150,24 @@
     padding: 2rem 0;
   }
 
+  /* The written summary reads as a margin note, not as another data block:
+     a rule instead of a box, prose measure instead of full width. */
+  .written {
+    border-left: 2px solid var(--border-subtle);
+    padding-left: 1.5rem;
+    margin: 0 0 3.5rem;
+    max-width: 62ch;
+    line-height: 1.9;
+  }
+  .written .attrib {
+    display: block;
+    margin-top: 1rem;
+    font-size: .7rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
   footer { color: var(--text-secondary); font-size: .75rem; margin-top: 4rem; line-height: 1.8; }
 </style>
 </head>
@@ -205,6 +223,13 @@ function longDate(day) {
   const parts = day.split("-").map(Number);
   return new Date(parts[0], parts[1] - 1, parts[2])
     .toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function written(text, source) {
+  if (!text) return "";
+  const attrib = source === "api" ? "Written by Claude" : "Written by hand";
+  return '<div class="written">' + esc(text) +
+    '<span class="attrib">' + attrib + "</span></div>";
 }
 
 function timeline(sessions) {
@@ -303,6 +328,7 @@ function render(data) {
     : "Nothing tracked on this day.";
 
   el("content").innerHTML =
+    written(data.written, data.written_source) +
     timeline(data.sessions) +
     sessionTable(data.sessions) +
     categoryTable(data.categories) +

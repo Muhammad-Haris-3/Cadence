@@ -15,7 +15,7 @@ from pathlib import Path
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
 
-from . import categories, config, db, ingest, sessionizer
+from . import categories, config, db, ingest, sessionizer, summary
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -78,8 +78,12 @@ def day_payload(conn, day: str) -> dict:
     def rows(sql):
         return [dict(r) for r in conn.execute(sql, (day,))]
 
+    written = summary.get(conn, day)
+
     return {
         "day": day,
+        "written": written["text"] if written else None,
+        "written_source": written["source"] if written else None,
         "summary": {
             "sessions": len(listed),
             "blocks_sec": sum(s["duration_sec"] for s in worked),

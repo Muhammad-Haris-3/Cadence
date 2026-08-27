@@ -53,6 +53,17 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_day ON sessions (day);
+
+-- One written summary per day. Unlike sessions this is NOT derived: it cannot
+-- be regenerated identically, and regenerating it may cost money, so it is
+-- never dropped automatically.
+CREATE TABLE IF NOT EXISTS summaries (
+    day        TEXT PRIMARY KEY,
+    text       TEXT NOT NULL,
+    model      TEXT,
+    source     TEXT,              -- 'api' or 'manual'
+    created_at TEXT NOT NULL
+);
 """
 
 

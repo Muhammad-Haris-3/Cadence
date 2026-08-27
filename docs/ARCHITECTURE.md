@@ -83,6 +83,16 @@ One contiguous stretch of time on a single window. The authoritative table.
 - `session_id` (INTEGER, nullable, indexed) -- derived
 - Unique constraint on (`started_at`, `app`, `title`)
 
+### `summaries`
+
+One written summary per day. Not derived -- never dropped automatically.
+
+- `day` (TEXT, primary key)
+- `text` (TEXT, required)
+- `model` (TEXT, nullable) -- null when written by hand
+- `source` (TEXT) -- `api` or `manual`
+- `created_at` (TEXT, required)
+
 ### `sessions`
 
 A block of work as it was actually lived. Fully derived: it can be dropped and
@@ -206,14 +216,39 @@ Navigation is by `?day=YYYY-MM-DD`, with arrow keys bound to the adjacent days
 and forward navigation disabled on today. While today is displayed the page
 refetches every `DASHBOARD_POLL_SECONDS`; historical days do not poll.
 
-## 11. Migration Strategy
+## 11. Daily Summary
+
+A written summary of a day, reachable two ways. Both consume the same input:
+`digest.build()`, which renders the day as compact plain text -- roughly 400
+tokens for a light day, a few thousand for a full one.
+
+The digest carries a **trailing comparison** against the previous seven *tracked*
+days, skipping gaps rather than averaging zeros into them, since a weekend off is
+not a productivity collapse. This is what separates a summary that says something
+from one that restates numbers already on screen.
+
+**The free path is the default.** `daily_summary.py` prints the digest; Claude
+Code reads the database directly in a session and writes the summary, at no
+marginal cost and with follow-up questions available -- which a stored summary
+can never offer. The result is stored with `--save`.
+
+**The API path is opt-in.** `daily_summary.py --ai` sends the digest to the
+Claude API and prints what it spent. The `anthropic` package is deliberately kept
+out of `requirements.txt` and lives in `requirements-ai.txt`, so a default
+install stays free and carries no API client.
+
+Summaries are stored in `summaries` (one row per day). Unlike `sessions`, they
+are **not derived**: they cannot be regenerated identically and regenerating may
+cost money, so nothing drops them automatically.
+
+## 12. Migration Strategy
 
 `db.migrate()` runs on every connect and applies additive migrations only --
 `ALTER TABLE ... ADD COLUMN` guarded by a `PRAGMA table_info` check. Because
 sessions and categories are derived, no data migration is required when their
 rules change; the affected days are simply recomputed.
 
-## 12. Privacy Boundary Implemented in Code
+## 13. Privacy Boundary Implemented in Code
 
 - `win_probe.py` reads window metadata and the *timestamp* of the last input.
   There is no keyboard hook, and keystroke content is not obtainable from the
@@ -224,6 +259,9 @@ rules change; the affected days are simply recomputed.
   allowlist.
 - The database and the pairing token live under `~/.cadence/` and are excluded
   from version control.
+- The API path is the only component that transmits anything off the machine,
+  which is why it is opt-in, requires a key, and is never invoked automatically.
+  The digest it sends contains window titles and hosts.
 - The dashboard renders every window title and host through a text-node escape
   rather than as raw markup, since titles are attacker-influenced strings that
   arrive from whatever page happens to be open.

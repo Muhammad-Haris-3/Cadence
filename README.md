@@ -99,6 +99,39 @@ rejects any `Origin` that is not `chrome-extension://`.
 **Firefox/Safari** would each need their own port of the extension; only
 Chromium browsers are wired up.
 
+## Daily summary
+
+The free path is the default and the better one:
+
+```
+.venv\Scripts\python daily_summary.py
+```
+
+That prints a compact digest of the day, including how it compares with your
+previous seven tracked days. Open Claude Code in this repo and ask it to
+summarise -- it reads the database directly, costs nothing beyond a subscription
+you already pay for, and you can ask follow-up questions, which a stored summary
+can never answer. Save what it writes:
+
+```
+.venv\Scripts\python daily_summary.py --save     (reads stdin)
+.venv\Scripts\python daily_summary.py --show
+```
+
+Saved summaries appear at the top of the dashboard, labelled with who wrote them.
+
+**Optional, and the only part that can cost money:**
+
+```
+.venv\Scripts\pip install -r requirements-ai.txt
+.venv\Scripts\python daily_summary.py --ai
+```
+
+This sends the digest to the Claude API and prints what it spent. A day is a few
+thousand tokens, so it lands around a few cents on Opus and well under a cent on
+Haiku (`--model claude-haiku-4-5`). The `anthropic` package is kept out of the
+main requirements so a default install stays free.
+
 ## Layout
 
 ```
@@ -113,10 +146,13 @@ daemon/
     categories.py  app/title -> category rules
     web.py         dashboard JSON API and page routes
     tray.py        tray icon, pause/resume, single-instance guard
+    digest.py      compact a day, with a trailing baseline
+    summary.py     summary storage and the optional API call
     static/        the dashboard page
   tray_app.pyw     everyday entry point, no console
   main.py          foreground entry point, with a console
   autostart.py     register or remove the logon task
+  daily_summary.py digest, and the optional AI summary
   report.py        daily breakdown
   tests/           end-to-end ingest check
 extension/         unpacked Chrome MV3 extension
@@ -131,4 +167,4 @@ docs/
 - [x] Sessionizer: merge fragmented segments into meaningful work blocks
 - [x] Local dashboard at 127.0.0.1:8765, served by the daemon (design carried over from core_tracker)
 - [x] Tray app and autostart via Task Scheduler
-- [ ] AI daily summary (read the DB from Claude Code -- free -- or a nightly API call)
+- [x] AI daily summary (read the DB from Claude Code -- free -- or an opt-in API call)
