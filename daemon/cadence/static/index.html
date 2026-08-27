@@ -351,6 +351,50 @@
 
   .note { color: var(--text-2); font-size: .8rem; }
 
+  /* -- applications, and the story behind each one -------------------------- */
+
+  tr.app > td { cursor: pointer; user-select: none; }
+  tr.app:hover .label { color: var(--text); }
+
+  .chev {
+    flex: none;
+    width: .8rem;
+    margin-right: .35rem;
+    color: var(--text-2);
+    font-size: .65rem;
+    transition: transform .18s ease;
+  }
+  tr.app[aria-expanded="true"] .chev { transform: rotate(90deg); }
+
+  tr.detail > td { padding: 0; border-bottom: 1px solid var(--border); }
+  tr.detail[hidden] { display: none; }
+
+  .visits {
+    padding: .5rem 0 .9rem 1.15rem;
+    margin-left: .25rem;
+    border-left: 1px solid var(--border);
+  }
+
+  .visit {
+    display: flex;
+    align-items: baseline;
+    gap: .75rem;
+    padding: .22rem 0;
+    font-size: .82rem;
+  }
+  .visit .when { font-family: var(--mono); color: var(--text); white-space: nowrap; }
+  .visit .howlong { font-family: var(--mono); color: var(--text-2); white-space: nowrap; }
+  .visit .aside { color: var(--text-2); font-size: .78rem; }
+
+  /* A break is drawn as absence: no rule, no marker, just indented space, so
+     the eye reads the gap as the gap rather than as another entry. */
+  .gap {
+    padding: .1rem 0 .1rem 1.6rem;
+    font-size: .76rem;
+    color: var(--text-2);
+    font-style: italic;
+  }
+
   .empty { color: var(--text-2); font-family: var(--lede-family); font-size: 1.2rem; padding: 1.5rem 0; }
 
   /* -- written summary ----------------------------------------------------- */
@@ -411,6 +455,11 @@ const MOON = '<svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 
 
 let currentDay = new URLSearchParams(location.search).get("day");
 let timer = null;
+let lastData = null;
+
+// Which applications the reader has opened. Kept across the 20s poll, or every
+// refresh would collapse whatever they were in the middle of reading.
+const opened = new Set();
 
 const el = (id) => document.getElementById(id);
 const color = (c) => "var(--cat-" + (KNOWN.includes(c) ? c : "other") + ")";
@@ -557,6 +606,67 @@ function categoryTable(categories) {
     rows + "</table></section>";
 }
 
+function clock(stamp) {
+  return stamp ? stamp.slice(11, 16) : "now";
+}
+
+function visitList(a) {
+  const parts = a.visits.map(function (v) {
+    const gap = v.break_sec
+      ? '<div class="gap">away ' + fmt(v.break_sec) + "</div>"
+      : "";
+
+    // A merged visit absorbed brief excursions, so its span is longer than the
+    // time actually spent in it. Saying so is better than quietly disagreeing
+    // with the arithmetic the reader is doing in their head.
+    const aside = v.away_sec >= 60
+      ? '<span class="aside">' + fmt(v.away_sec) + " elsewhere in between</span>"
+      : v.title && v.title !== a.name
+        ? '<span class="aside">' + esc(v.title) + "</span>"
+        : "";
+
+    return gap +
+      '<div class="visit">' +
+        '<span class="when">' + clock(v.start) + " &ndash; " + clock(v.end) + "</span>" +
+        '<span class="howlong">' + fmt(v.duration_sec) + "</span>" +
+        aside +
+      "</div>";
+  }).join("");
+
+  return '<div class="visits">' + parts + "</div>";
+}
+
+function appTable(apps) {
+  const real = apps.filter(function (a) { return !a.app.startsWith("__"); });
+  if (!real.length) return "";
+
+  const rows = real.map(function (a) {
+    const open = opened.has(a.app);
+    const visits = a.visits.length;
+    const engaged = pct(a.input_sec, a.duration_sec);
+
+    return '<tr class="app" data-app="' + esc(a.app) + '" aria-expanded="' + open + '">' +
+        '<td class="truncate"><span class="with-icon">' +
+          '<span class="chev">&#9654;</span>' +
+          '<span class="dot" style="background:' + color(a.category) + '"></span>' +
+          appIcon(a.app) +
+          '<span class="label">' + esc(a.name) + "</span></span></td>" +
+        '<td class="num">' + fmt(a.duration_sec) + "</td>" +
+        '<td class="num muted">' + visits + (visits > 1 ? " visits" : " visit") + "</td>" +
+        '<td class="num muted">' + clock(a.first_seen) + " &ndash; " + clock(a.last_seen) + "</td>" +
+        '<td class="num muted">' + engaged + "%</td>" +
+      "</tr>" +
+      '<tr class="detail" data-detail="' + esc(a.app) + '"' + (open ? "" : " hidden") + ">" +
+        '<td colspan="5">' + visitList(a) + "</td>" +
+      "</tr>";
+  }).join("");
+
+  return "<section><h2>Applications</h2><table>" +
+    '<tr><th></th><th class="num">Total</th><th class="num">Picked up</th>' +
+    '<th class="num">Between</th><th class="num">Engaged</th></tr>' +
+    rows + "</table></section>";
+}
+
 function listTable(title, items, label, icon) {
   if (!items.length) return "";
 
@@ -578,6 +688,7 @@ function listTable(title, items, label, icon) {
 /* -- render ---------------------------------------------------------------- */
 
 function render(data) {
+  lastData = data;
   currentDay = data.day;
   el("day-label").textContent = data.is_today ? "Today" : longDate(data.day);
   el("next").disabled = data.is_today;
@@ -594,7 +705,7 @@ function render(data) {
     timeline(data.sessions) +
     sessionTable(data.sessions) +
     categoryTable(data.categories) +
-    listTable("Top windows", data.windows, function (w) { return w.title || w.app; }, true) +
+    appTable(data.apps) +
     listTable("Top sites", data.sites, function (x) { return x.host; }, false);
 
   history.replaceState(null, "", "?day=" + data.day);
@@ -624,6 +735,20 @@ function shift(days) {
     String(moved.getDate()).padStart(2, "0");
   load(iso);
 }
+
+// Delegated, because the table is rebuilt from scratch on every poll.
+el("content").addEventListener("click", function (e) {
+  const row = e.target.closest("tr.app");
+  if (!row) return;
+
+  const app = row.dataset.app;
+  const isOpen = opened.has(app);
+  if (isOpen) opened.delete(app); else opened.add(app);
+
+  row.setAttribute("aria-expanded", String(!isOpen));
+  const detail = el("content").querySelector('tr.detail[data-detail="' + CSS.escape(app) + '"]');
+  if (detail) detail.hidden = isOpen;
+});
 
 el("prev").addEventListener("click", function () { shift(-1); });
 el("next").addEventListener("click", function () { shift(1); });

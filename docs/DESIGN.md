@@ -125,6 +125,22 @@ screen allows.
   than matched from an icon pack, so an obscure tool is identified as accurately
   as a famous one. A binary with no extractable icon falls back to the category
   dot rather than to a generic placeholder.
+- **An application is one row, whatever it was called.** A program appears once,
+  under the name a person would use for it, with its total beside it. Repeating
+  the same application down the page under its changing window titles describes
+  the windows rather than the work.
+- **Names come from the binaries**, the same way icons do: `WhatsApp.Root.exe`
+  is not what anyone calls that program, and a lookup table would get the famous
+  dozen right and mislabel everything else. Windows already stores the real name
+  in the version resource, so it is asked; a filename is tidied only when the
+  resource is missing.
+- **A row opens into its own story.** Clicking an application reveals when it
+  was picked up, how long each stretch lasted, and how long it was left alone in
+  between -- the shape of a habit, which a single total cannot show. Breaks are
+  drawn as indented space with no rule and no marker, so absence reads as
+  absence here exactly as it does in the day band. What is open survives the
+  refresh, since a poll that collapsed what you were reading would be worse than
+  no poll at all.
 - **Meters over bars.** A 4px rule with a colored fill, not a chart. The number
   sits beside it in muted text, because the figure is the fact and the meter is
   only the shape of it.
@@ -183,7 +199,9 @@ The report is ordered by how a person actually asks about their day.
    only view that matches lived experience.
 2. **Categories** -- where the hours went, with engagement alongside duration so
    screen time is never mistaken for work.
-3. **Top windows** -- the drill-down, for when a category total is surprising.
+3. **Applications** -- the drill-down, for when a category total is surprising.
+   Each opens into its own visits, which is where "why is that number so high"
+   is actually answered.
 4. **Top sites** -- the browser drill-down, present only when tab data exists.
 
 Absence of data is rendered as absence, not as zero. A section with nothing to

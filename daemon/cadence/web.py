@@ -16,7 +16,7 @@ from fastapi import HTTPException
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import categories, config, db, icons, ingest, sessionizer, summary
+from . import appnames, categories, config, db, icons, ingest, sessionizer, summary
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -48,6 +48,92 @@ def _ensure_built(conn, day: str) -> None:
     if has_segments:
         categories.backfill(conn)
         sessionizer.rebuild(conn, day)
+
+
+def _app_rollup(conn, day: str) -> list:
+    """One entry per application, each carrying the story of how it was used.
+
+    A day spent in WhatsApp is not twelve unrelated rows, which is what grouping
+    by window title produces -- it is one application picked up and put down
+    several times. So segments are grouped by app and then merged into visits,
+    and a visit that ends only because you glanced at Explorer for three seconds
+    is not a visit that ended. MIN_SWITCH_SECONDS is the same threshold the
+    sessionizer uses to decide that a switch was real, reused here so the two
+    views of a day cannot disagree about what counts as an interruption.
+    """
+    rows = conn.execute(
+        "SELECT app, title, started_at, ended_at, duration_sec, input_sec, category "
+        "FROM segments WHERE day = ? AND category NOT IN ('idle','away') "
+        "ORDER BY started_at, id",
+        (day,),
+    ).fetchall()
+
+    def moment(stamp):
+        try:
+            return datetime.fromisoformat(stamp)
+        except (ValueError, TypeError):
+            return None
+
+    grouped = {}
+    for row in rows:
+        grouped.setdefault(row["app"], []).append(row)
+
+    apps = []
+    for app, segments in grouped.items():
+        visits = []
+        for row in segments:
+            started, ended = moment(row["started_at"]), moment(row["ended_at"])
+            gap = None
+            if visits and started and visits[-1]["_end"]:
+                gap = (started - visits[-1]["_end"]).total_seconds()
+
+            if visits and gap is not None and gap < config.MIN_SWITCH_SECONDS:
+                visit = visits[-1]
+                visit["duration_sec"] += row["duration_sec"] or 0
+                visit["input_sec"] += row["input_sec"] or 0
+                visit["away_sec"] += max(gap, 0)
+                if ended:
+                    visit["_end"] = ended
+                    visit["end"] = row["ended_at"]
+                continue
+
+            visits.append({
+                "start": row["started_at"],
+                "end": row["ended_at"],
+                "offset_sec": _seconds_since_midnight(row["started_at"]),
+                "duration_sec": row["duration_sec"] or 0,
+                "input_sec": row["input_sec"] or 0,
+                "away_sec": 0.0,
+                "break_sec": gap if gap is not None else None,
+                "title": row["title"] or "",
+                "_end": ended,
+            })
+
+        for visit in visits:
+            visit.pop("_end", None)
+
+        # The open segment carries no duration yet, so an app currently in focus
+        # for the first time today would otherwise rank as zero and vanish.
+        total = sum(v["duration_sec"] for v in visits)
+        titles = {}
+        for row in segments:
+            if row["title"]:
+                titles[row["title"]] = titles.get(row["title"], 0) + (row["duration_sec"] or 0)
+
+        apps.append({
+            "app": app,
+            "name": appnames.display_name(conn, app),
+            "category": segments[-1]["category"] or "other",
+            "duration_sec": total,
+            "input_sec": sum(v["input_sec"] for v in visits),
+            "first_seen": visits[0]["start"] if visits else None,
+            "last_seen": visits[-1]["end"] if visits else None,
+            "top_title": max(titles, key=titles.get) if titles else "",
+            "visits": visits,
+        })
+
+    apps.sort(key=lambda a: a["duration_sec"], reverse=True)
+    return apps
 
 
 def day_payload(conn, day: str) -> dict:
@@ -99,11 +185,7 @@ def day_payload(conn, day: str) -> dict:
             "SUM(input_sec) input_sec FROM segments WHERE day = ? "
             "GROUP BY category ORDER BY duration_sec DESC"
         ),
-        "windows": rows(
-            "SELECT app, title, SUM(duration_sec) duration_sec, SUM(input_sec) input_sec "
-            "FROM segments WHERE day = ? AND category NOT IN ('idle','away') "
-            "GROUP BY app, title ORDER BY duration_sec DESC LIMIT 12"
-        ),
+        "apps": _app_rollup(conn, day),
         "sites": rows(
             "SELECT host, SUM(duration_sec) duration_sec, SUM(input_sec) input_sec "
             "FROM segments WHERE day = ? AND host IS NOT NULL "

@@ -206,9 +206,25 @@ Served at `http://127.0.0.1:8765/` whenever the daemon is running.
 | --- | --- |
 | `GET /` | The dashboard page |
 | `GET /api/days` | Days that have data, plus today's date |
-| `GET /api/day/{day}` | Summary, sessions, categories, top windows, top sites |
+| `GET /api/day/{day}` | Summary, sessions, categories, applications, top sites |
 | `POST /tab` | Browser tab ingest (see section 8) |
 | `GET /health` | Liveness, plus the currently reported host |
+
+**Applications are rolled up per binary, not per window title.** Grouping by
+title turns a day in one program into a dozen unrelated rows, which describes
+the windows rather than the work. `_app_rollup` groups a day's segments by `app`
+and then merges each app's segments into *visits*: consecutive runs of that
+application, joined across any gap shorter than `MIN_SWITCH_SECONDS`. That is
+the same threshold the sessionizer uses to decide a switch was real, reused
+deliberately -- if the two views disagreed about what counts as an interruption,
+one of them would be lying.
+
+A merged visit therefore spans more clock time than it accumulates, since it
+absorbed brief excursions. The difference is carried explicitly as `away_sec`
+rather than left for the reader to discover as an arithmetic error, and the gap
+between visits is carried as `break_sec`. The rollup is computed per request; it
+is a grouping over one day's segments, not stored state, so it cannot fall out
+of sync with the segments it summarizes.
 
 The day payload carries `offset_sec` per session -- seconds since local midnight
 -- so the timeline band can be positioned without the client parsing timestamps.
