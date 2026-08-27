@@ -120,12 +120,26 @@ can never answer. Save what it writes:
 
 Saved summaries appear at the top of the dashboard, labelled with who wrote them.
 
-**Optional, and the only part that can cost money:**
+### Cost
+
+Everything above is free and always will be: the tracker, sessions, dashboard,
+report, and the digest with its baseline are plain Python and SQL. They need no
+AI and no account.
+
+The free summary path uses Claude Code, which runs on either a subscription or
+an API key. If that ever goes away, nothing about the tracker stops working --
+you simply write the summary yourself and store it with `--save`, or skip it.
+
+**The one part that can cost money, and it is optional:**
 
 ```
 .venv\Scripts\pip install -r requirements-ai.txt
 .venv\Scripts\python daily_summary.py --ai
 ```
+
+`--ai` always shows the estimated cost first and waits for a typed `y`; it
+cannot spend anything without that. Use `--yes` to skip the prompt only for
+unattended runs. Nothing else in Cadence ever contacts a paid service.
 
 This sends the digest to the Claude API and prints what it spent. A day is a few
 thousand tokens, so it lands around a few cents on Opus and well under a cent on

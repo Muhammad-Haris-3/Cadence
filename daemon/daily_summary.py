@@ -29,11 +29,39 @@ sys.stdin.reconfigure(encoding="utf-8", errors="replace")
 def parse_args():
     parser = argparse.ArgumentParser(add_help=True, description=__doc__)
     parser.add_argument("day", nargs="?", default=date.today().strftime("%Y-%m-%d"))
-    parser.add_argument("--ai", action="store_true", help="generate via the Claude API")
+    parser.add_argument("--ai", action="store_true", help="generate via the Claude API (costs money)")
     parser.add_argument("--model", default=summary.DEFAULT_MODEL)
     parser.add_argument("--save", action="store_true", help="store a summary read from stdin")
     parser.add_argument("--show", action="store_true", help="print the stored summary")
+    parser.add_argument(
+        "--yes", action="store_true",
+        help="skip the spend confirmation (for unattended runs)",
+    )
     return parser.parse_args()
+
+
+def confirm_spend(conn, day: str, model: str) -> bool:
+    """Never let money leave without a number on screen and a typed yes.
+
+    The estimate is from the digest length, so it is approximate -- but it is the
+    right order of magnitude, which is what the decision actually turns on.
+    """
+    text = digest.build(conn, day)
+    approx_in = len(text) // 4
+    approx_out = 400
+    cost = summary.estimate_cost(model, approx_in, approx_out)
+
+    print(f"\nThis calls the Claude API and costs real money.")
+    print(f"  model     {model}")
+    print(f"  estimate  ~{approx_in} in / ~{approx_out} out  ->  about ${cost:.4f}")
+    print("\nThe free path costs nothing: run without --ai, and ask Claude Code")
+    print("to summarise the digest it prints.\n")
+
+    try:
+        return input("Continue and spend? [y/N] ").strip().lower() in ("y", "yes")
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return False
 
 
 def main() -> int:
@@ -64,6 +92,10 @@ def main() -> int:
         return 0
 
     if args.ai:
+        if not args.yes and not confirm_spend(conn, args.day, args.model):
+            print("Cancelled. Nothing was sent and nothing was spent.")
+            return 1
+
         try:
             result = summary.generate(conn, args.day, model=args.model)
         except RuntimeError as exc:
