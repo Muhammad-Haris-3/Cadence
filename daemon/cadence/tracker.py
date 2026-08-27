@@ -18,7 +18,7 @@ import threading
 import time
 from datetime import datetime
 
-from . import categories, config, db, sessionizer
+from . import categories, config, db, logs, sessionizer
 from .ingest import STATE as TAB_STATE
 from .win_probe import foreground_window, idle_millis, last_input_tick
 
@@ -169,10 +169,12 @@ class Tracker:
             signal.signal(signal.SIGINT, self.stop)
             signal.signal(signal.SIGTERM, self.stop)
 
+        log = logs.get("tracker")
+
         closed = db.close_dangling(self.conn)
         if closed:
-            print(f"[cadence] closed {closed} segment(s) left open by a previous run")
-        print(f"[cadence] tracking -> {config.DB_PATH}  (ctrl-c to stop)")
+            log.info("closed %d segment(s) left open by a previous run", closed)
+        log.info("tracking -> %s", config.DB_PATH)
 
         try:
             while not self._stop:
@@ -182,4 +184,4 @@ class Tracker:
                 time.sleep(max(0.0, self.poll - (time.monotonic() - started)))
         finally:
             self._flush(closing=True)
-            print("\n[cadence] stopped, current segment saved")
+            log.info("stopped, current segment saved")

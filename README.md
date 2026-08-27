@@ -51,9 +51,16 @@ needs no elevation instead:
 .venv\Scripts\python autostart.py install startup
 ```
 
-`autostart.py status` shows what is registered, and `autostart.py uninstall`
+`autostart.py status` shows what is registered **and** whether Cadence is
+actually running right now, which are two different questions. `autostart.py
+start` starts it without waiting for a logon, and `autostart.py uninstall`
 removes it. Only one instance can run at a time -- a second refuses to start
 rather than counting every second twice.
+
+If the dashboard says it can't reach the tracker, the reason is in
+`%USERPROFILE%\.cadence\cadence.log`. Started at logon there is no console and
+no window, so everything Cadence would have printed goes there instead; a
+startup failure also raises a message box rather than disappearing silently.
 
 To run in the foreground with a console instead, use `.venv\Scripts\python main.py`.
 
@@ -152,6 +159,7 @@ main requirements so a default install stays free.
 daemon/
   cadence/
     config.py      paths, poll interval, idle threshold
+    logs.py        the log file, and std streams that survive pythonw
     win_probe.py   the Win32 calls (foreground window, idle time)
     db.py          SQLite schema and access
     tracker.py     the sampling loop
@@ -165,10 +173,10 @@ daemon/
     static/        the dashboard page
   tray_app.pyw     everyday entry point, no console
   main.py          foreground entry point, with a console
-  autostart.py     register or remove the logon task
+  autostart.py     register, start, or remove the logon task
   daily_summary.py digest, and the optional AI summary
   report.py        daily breakdown
-  tests/           end-to-end ingest check
+  tests/           end-to-end ingest check, and the no-console contract
 extension/         unpacked Chrome MV3 extension
 docs/
 ```

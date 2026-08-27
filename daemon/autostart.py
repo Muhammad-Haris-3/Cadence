@@ -1,9 +1,15 @@
 """Start tracking automatically when Windows starts.
 
-    python autostart.py status
+    python autostart.py status             # installed *and* actually running?
+    python autostart.py start              # start it now, without a logon
     python autostart.py install            # Task Scheduler (preferred)
     python autostart.py install startup    # Startup folder (no elevation)
     python autostart.py uninstall          # removes both
+
+`status` reports two separate things, because they failed independently once:
+whether Windows is set to launch Cadence, and whether Cadence is running right
+now. An installed shortcut that dies a second after logon looks identical to no
+shortcut at all from the dashboard, and that is exactly what happened.
 
 Two mechanisms, because they fail in different situations:
 
@@ -22,6 +28,7 @@ run unelevated -- tracking needs no privileges and should never ask for any.
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 TASK_NAME = "Cadence Tracker"
@@ -147,6 +154,52 @@ def uninstall_startup(quiet: bool = False) -> bool:
 # -- commands -----------------------------------------------------------------
 
 
+def running() -> bool:
+    """Whether a Cadence is up right now, judged by the port it serves on."""
+    sys.path.insert(0, str(DAEMON_DIR))
+    from cadence import ingest
+
+    return ingest.port_in_use()
+
+
+def start() -> int:
+    """Launch the tray app the same way the logon task does, and confirm it
+    stayed up -- a start that reports success and then dies is the whole bug
+    this command exists to catch."""
+    if running():
+        print("Cadence is already running.")
+        return 0
+
+    problems = preflight()
+    if problems:
+        for problem in problems:
+            print(f"error: {problem}")
+        return 1
+
+    subprocess.Popen(
+        [str(PYTHONW), str(ENTRY)],
+        cwd=str(DAEMON_DIR),
+        creationflags=getattr(subprocess, "DETACHED_PROCESS", 0),
+    )
+
+    for _ in range(20):
+        time.sleep(0.5)
+        if running():
+            print("Cadence is running. Dashboard: http://127.0.0.1:8765/")
+            return 0
+
+    print("Cadence did not come up within 10s.")
+    print(f"The reason will be in the log: {log_path()}")
+    return 1
+
+
+def log_path() -> Path:
+    sys.path.insert(0, str(DAEMON_DIR))
+    from cadence import logs
+
+    return logs.LOG_PATH
+
+
 def status() -> int:
     problems = preflight()
     for problem in problems:
@@ -154,9 +207,12 @@ def status() -> int:
 
     task = task_installed()
     shortcut = shortcut_path().exists()
+    live = running()
 
     print(f"Scheduled task      {'installed' if task else 'not installed'}")
     print(f"Startup shortcut    {'installed' if shortcut else 'not installed'}")
+    print(f"Running now         {'yes' if live else 'no'}")
+    print(f"Log                 {log_path()}")
     print(f"\nWould run: {task_command()}")
 
     if task and shortcut:
@@ -166,6 +222,13 @@ def status() -> int:
         )
     elif not task and not shortcut:
         print("\nNot starting automatically. Install with:  python autostart.py install")
+
+    if (task or shortcut) and not live:
+        print(
+            "\nSet to start automatically, but not running. Either you haven't\n"
+            "logged in since installing it, or it started and died -- the log\n"
+            "above says which. Start it now with:  python autostart.py start"
+        )
     return 0
 
 
@@ -194,10 +257,12 @@ if __name__ == "__main__":
 
     if command == "status":
         raise SystemExit(status())
+    if command == "start":
+        raise SystemExit(start())
     if command == "install":
         raise SystemExit(install(argument))
     if command == "uninstall":
         raise SystemExit(uninstall())
 
-    print("usage: python autostart.py [status | install [startup] | uninstall]")
+    print("usage: python autostart.py [status | start | install [startup] | uninstall]")
     raise SystemExit(2)

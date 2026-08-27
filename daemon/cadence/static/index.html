@@ -723,7 +723,15 @@ async function load(day) {
     }
     render(await (await fetch("/api/day/" + target)).json());
   } catch (err) {
-    el("lede").textContent = "Can't reach the tracker. Is the daemon running?";
+    // The page itself came from the service worker cache, which is why you are
+    // reading this instead of a browser connection error. Say what to do, and
+    // keep trying: when the tracker comes back the page should recover on its
+    // own rather than needing a reload.
+    el("lede").textContent =
+      "Can't reach the tracker — it isn't running. " +
+      "Start it from the tray, or run:  python autostart.py start";
+    clearTimeout(timer);
+    timer = setTimeout(function () { load(day); }, 5000);
   }
 }
 

@@ -117,17 +117,28 @@ def port_in_use() -> bool:
         probe.close()
 
 
+def server_config(token: str, app=None) -> uvicorn.Config:
+    """Built separately from the server so it can be constructed in a test
+    without binding the port -- constructing it is where Cadence used to die."""
+    return uvicorn.Config(
+        app or build_app(token),
+        host=config.INGEST_HOST,
+        port=config.INGEST_PORT,
+        log_level="warning",
+        # Uvicorn's own logging config must not be installed. Building it calls
+        # sys.stdout.isatty() to decide about colour, and under pythonw.exe --
+        # which is how the logon task starts us -- sys.stdout is None. That
+        # raised right here, before the tray icon or the sampler existed, and
+        # killed the process silently at every single logon. None leaves
+        # uvicorn on the handlers cadence.logs has already set up.
+        log_config=None,
+    )
+
+
 def serve_in_background(token: str, app=None) -> threading.Thread:
     """Run the HTTP server on a daemon thread. `app` defaults to ingest alone;
     main.py passes the dashboard app, which wraps it."""
-    server = uvicorn.Server(
-        uvicorn.Config(
-            app or build_app(token),
-            host=config.INGEST_HOST,
-            port=config.INGEST_PORT,
-            log_level="warning",
-        )
-    )
+    server = uvicorn.Server(server_config(token, app))
     # uvicorn installs signal handlers on startup, which only works on the main
     # thread; the tracker owns those.
     server.install_signal_handlers = lambda: None

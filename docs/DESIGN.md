@@ -156,6 +156,12 @@ screen allows.
   no flash, and no "last updated" chrome. Historical days do not poll.
 - **Keyboard first.** Left and right arrows move between days; forward is
   disabled on today rather than hidden, so the boundary is visible.
+- **An unreachable tracker names the fix.** The page is cached by the service
+  worker, so it still renders when the daemon is down -- which is the only
+  reason a person sees this state instead of a browser connection error. The
+  lede therefore says what to do (start it from the tray, or `autostart.py
+  start`) rather than asking a question the reader has no way to answer, and it
+  keeps retrying so the page heals itself when the daemon comes back.
 
 ## 7. Tray Icon
 

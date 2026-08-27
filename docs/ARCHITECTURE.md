@@ -198,6 +198,33 @@ straight at `pythonw.exe`; a `.cmd` file there would flash a console at every
 logon. Both run unelevated -- tracking needs no privileges and should never ask
 for any.
 
+**Nothing on this path may assume a console.** Under `pythonw.exe` there is no
+stdout and no stderr -- they are `None`, not closed files -- and no window. An
+uncaught exception therefore ends the process in under a second and leaves no
+trace anywhere: the only symptom is a dashboard reporting that the tracker isn't
+running, which is indistinguishable from never having installed autostart at
+all. That is not hypothetical. Uvicorn's default log config calls
+`sys.stdout.isatty()`, so building the server config raised before the tray icon
+or the sampler existed, and autostart had never once worked. Three things follow
+from it, and `tests/test_headless.py` holds them by running with the std streams
+set to `None`:
+
+- `cadence/logs.py` is set up before anything else, writes to
+  `~/.cadence/cadence.log`, and rebinds `sys.stdout`/`sys.stderr` to that file
+  when they are `None`, so a dependency that reaches for a console finds one.
+- `ingest.server_config()` passes `log_config=None`, keeping uvicorn off the
+  std streams entirely. It is built apart from the server so a test can
+  construct it without binding the port.
+- Both the tray's top-level `run()` and the sampler thread catch everything, log
+  the traceback, and say so on screen -- a message box being the only channel a
+  logon-launched process has to a person. A sampler that dies under a live tray
+  icon is the worst failure available: it looks like it is tracking and records
+  nothing, so the icon goes muted and its tooltip points at the log.
+
+`autostart.py status` accordingly reports *installed* and *running now* as two
+separate lines, because they failed independently, and `autostart.py start`
+launches the tray app the way the logon task does and then confirms it stayed up.
+
 ## 10. Dashboard
 
 Served at `http://127.0.0.1:8765/` whenever the daemon is running.

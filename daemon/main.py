@@ -6,7 +6,7 @@ tray app, which needs no terminal left open:  pythonw tray_app.pyw
 
 import sys
 
-from cadence import config, db, ingest, web
+from cadence import config, db, ingest, logs, web
 from cadence.tracker import Tracker
 
 ALREADY_RUNNING = """[cadence] port {port} is already in use -- Cadence is probably
@@ -14,6 +14,8 @@ ALREADY_RUNNING = """[cadence] port {port} is already in use -- Cadence is proba
           database would count every second twice."""
 
 if __name__ == "__main__":
+    logs.setup(console=True)
+
     if ingest.port_in_use():
         print(ALREADY_RUNNING.format(port=config.INGEST_PORT))
         sys.exit(1)

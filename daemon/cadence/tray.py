@@ -10,15 +10,21 @@ do. It owns three things at once:
 The sampler runs on a worker rather than the main thread because pystray needs
 the main one to pump messages. That is why it opens its own database connection
 -- SQLite connections have thread affinity and cannot be handed across.
+
+Nothing here may assume a console. This is what the logon task launches, under
+pythonw.exe, where an uncaught exception is invisible: the process is simply
+gone and the dashboard says the tracker isn't running. So logging is set up
+before anything else, and every thread that can die on its own says so first.
 """
 
 import threading
+import traceback
 import webbrowser
 
 import pystray
 from PIL import Image, ImageDraw
 
-from . import config, db, ingest, web
+from . import config, db, ingest, logs, web
 from .tracker import Tracker
 
 ACTIVE_INK = (28, 25, 23, 255)      # --text-primary
@@ -38,6 +44,16 @@ def make_icon_image(paused: bool = False) -> Image.Image:
     return image
 
 
+def _show_message(message: str) -> None:
+    """There is no console to print to when launched at logon."""
+    try:
+        import ctypes
+
+        ctypes.windll.user32.MessageBoxW(0, message, "Cadence", 0x40)
+    except Exception:
+        print(message)
+
+
 class TrayApp:
     def __init__(self):
         self.tracker = None
@@ -47,10 +63,20 @@ class TrayApp:
     # -- threads -----------------------------------------------------------
 
     def _sample(self):
-        conn = db.connect()  # this thread's own connection
-        self.tracker = Tracker(conn)
-        self.ready.set()
-        self.tracker.run()
+        log = logs.get("tray")
+        try:
+            conn = db.connect()  # this thread's own connection
+            self.tracker = Tracker(conn)
+            self.ready.set()
+            self.tracker.run()
+        except Exception:
+            # A dead sampler under a live tray icon is the worst failure mode
+            # available: it looks like it is tracking and records nothing.
+            log.error("sampler thread died:\n%s", traceback.format_exc())
+            self.ready.set()  # don't make run() wait out the timeout
+            if self.icon is not None:
+                self.icon.icon = make_icon_image(paused=True)
+                self.icon.title = "Cadence - stopped (see cadence.log)"
 
     # -- menu actions ------------------------------------------------------
 
@@ -80,14 +106,22 @@ class TrayApp:
     # -- entry point -------------------------------------------------------
 
     def run(self) -> int:
+        log = logs.setup()
+        log.info("tray starting (data dir %s)", config.DATA_DIR)
+
         if ingest.port_in_use():
+            log.warning("port %s already in use; not starting a second instance",
+                        config.INGEST_PORT)
             self._warn_already_running()
             return 1
 
         token = config.load_or_create_token()
         ingest.serve_in_background(token, web.build_app(token))
+        log.info("dashboard on http://%s:%s/", config.INGEST_HOST, config.INGEST_PORT)
+
         threading.Thread(target=self._sample, daemon=True, name="cadence-sampler").start()
-        self.ready.wait(timeout=15)
+        if not self.ready.wait(timeout=15):
+            log.error("sampler did not come up within 15s")
 
         menu = pystray.Menu(
             pystray.MenuItem("Open dashboard", self.open_dashboard, default=True),
@@ -102,18 +136,27 @@ class TrayApp:
 
     @staticmethod
     def _warn_already_running() -> None:
-        """There may be no console to print to when launched at logon."""
-        message = (
+        _show_message(
             f"Cadence is already running (port {config.INGEST_PORT} is in use).\n\n"
             "Only one instance may run, or every second would be counted twice."
         )
-        try:
-            import ctypes
-
-            ctypes.windll.user32.MessageBoxW(0, message, "Cadence", 0x40)
-        except Exception:
-            print(message)
 
 
 def run() -> int:
-    return TrayApp().run()
+    """Top-level guard. Under pythonw a traceback goes nowhere, so write it
+    down and then say so on screen -- a message box is the only channel the
+    logon task has to a person."""
+    try:
+        return TrayApp().run()
+    except Exception:
+        detail = traceback.format_exc()
+        try:
+            logs.setup().error("Cadence failed to start:\n%s", detail)
+        except Exception:
+            pass
+        _show_message(
+            "Cadence could not start.\n\n"
+            f"{detail.strip().splitlines()[-1]}\n\n"
+            f"Full details: {logs.LOG_PATH}"
+        )
+        return 1
