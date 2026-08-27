@@ -18,6 +18,7 @@ import time
 from datetime import datetime
 
 from . import config, db
+from .ingest import STATE as TAB_STATE
 from .win_probe import foreground_window, idle_millis, last_input_tick
 
 IDLE_APP = "__idle__"
@@ -33,6 +34,7 @@ class Tracker:
 
         self.seg_id = None
         self.seg_key = None
+        self.seg_url = None
         self.duration = 0.0
         self.active = 0.0
         self.input_sec = 0.0
@@ -55,6 +57,7 @@ class Tracker:
             is_idle=is_idle,
         )
         self.seg_key = key
+        self.seg_url = None
         self.duration = self.active = self.input_sec = 0.0
 
     def _flush(self, closing=False):
@@ -104,9 +107,28 @@ class Tracker:
         if had_input:
             self.input_sec += self.poll
 
+        self._enrich_with_tab(app)
+
         self._since_flush += self.poll
         if self._since_flush >= self.flush_every:
             self._flush()
+
+    def _enrich_with_tab(self, app):
+        """Attach the reported tab URL to a browser segment.
+
+        Only when the browser is genuinely in front, and only from a report that
+        is still fresh -- an MV3 service worker sleeps, and a stale tab pinned to
+        the wrong window is worse than an empty column.
+        """
+        if self.seg_id is None or app not in config.BROWSER_APPS:
+            return
+
+        tab = TAB_STATE.get_fresh()
+        if tab is None or tab.url == self.seg_url:
+            return
+
+        db.set_segment_url(self.conn, self.seg_id, tab.url, tab.host)
+        self.seg_url = tab.url
 
     def run(self):
         signal.signal(signal.SIGINT, self.stop)

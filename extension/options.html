@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Cadence Tab Reporter</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.6 system-ui, sans-serif; max-width: 34rem; margin: 3rem auto; padding: 0 1.5rem; }
+  h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: .25rem; }
+  p  { color: #666; margin-top: 0; }
+  label { display: block; font-weight: 500; margin: 1.75rem 0 .4rem; }
+  input { width: 100%; padding: .6rem .7rem; font: inherit; font-family: ui-monospace, monospace;
+          border: 1px solid #ccc; border-radius: 6px; background: transparent; color: inherit; }
+  button { margin-top: 1rem; padding: .55rem 1.1rem; font: inherit; border-radius: 6px;
+           border: 1px solid #ccc; background: transparent; color: inherit; cursor: pointer; }
+  #status { margin-top: 1rem; min-height: 1.6em; font-size: .9rem; }
+  .ok { color: #15803d; } .err { color: #b91c1c; }
+  code { background: rgba(128,128,128,.15); padding: .12em .4em; border-radius: 4px; }
+</style>
+
+<h1>Cadence Tab Reporter</h1>
+<p>Sends the active tab's URL and title to the tracker running on this machine. Nothing is sent anywhere else.</p>
+
+<label for="token">Pairing token</label>
+<input id="token" placeholder="paste the token the daemon printed on startup" spellcheck="false" />
+<p style="margin-top:.5rem;font-size:.85rem">
+  Printed when you run <code>python main.py</code>, and saved at <code>~/.cadence/extension_token.txt</code>.
+</p>
+
+<button id="save">Save &amp; test connection</button>
+<div id="status"></div>
+
+<script src="options.js"></script>

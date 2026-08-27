@@ -45,6 +45,35 @@ Then, any time:
 Categories are plain regex rules in `daemon/cadence/categories.py`. Edit them
 and rerun the report -- it recategorizes from scratch every time.
 
+## Browser tabs
+
+Without this, every tab is just `chrome.exe` and a YouTube tutorial is
+indistinguishable from a YouTube rabbit hole. The extension closes that gap.
+
+1. Start the daemon (`python main.py`). It prints a pairing token on first run
+   and saves it to `~/.cadence/extension_token.txt`.
+2. Open `chrome://extensions`, turn on **Developer mode**, click **Load
+   unpacked**, and choose the `extension/` folder.
+3. Open the extension's **Details -> Extension options**, paste the token, and
+   click **Save & test connection**.
+
+It stays unpacked -- publishing to the Chrome Web Store costs $5 and there is
+nobody to publish it to.
+
+**What it sends:** the active tab's URL and title, to `127.0.0.1:8765` only.
+Query strings are stripped before storage, since that is where reset tokens,
+session ids and search terms live; the only exceptions are allowlisted content
+identifiers like YouTube's `v` (see `daemon/cadence/urls.py`). Non-web schemes
+(`chrome://`, `file://`) are never recorded.
+
+**Why it is guarded:** any process on the machine can reach a loopback port,
+including a web page you are visiting. The endpoint requires a token in a custom
+header -- which forces a CORS preflight a hostile page cannot satisfy -- and
+rejects any `Origin` that is not `chrome-extension://`.
+
+**Firefox/Safari** would each need their own port of the extension; only
+Chromium browsers are wired up.
+
 ## Layout
 
 ```
@@ -54,9 +83,13 @@ daemon/
     win_probe.py   the Win32 calls (foreground window, idle time)
     db.py          SQLite schema and access
     tracker.py     the sampling loop
+    urls.py        strips credentials out of reported URLs
+    ingest.py      localhost endpoint the browser extension reports to
     categories.py  app/title -> category rules
-  main.py          start tracking
+  main.py          start tracking (sampler + ingest)
   report.py        daily breakdown
+  tests/           end-to-end ingest check
+extension/         unpacked Chrome MV3 extension
 docs/
 ```
 
@@ -64,7 +97,7 @@ docs/
 
 - [x] Foreground window + idle sampling into SQLite
 - [x] Rule-based categorization and a daily terminal report
-- [ ] Chrome extension reporting the active tab URL to localhost
+- [x] Chrome extension reporting the active tab URL to localhost
 - [ ] Sessionizer: merge fragmented segments into meaningful work blocks
 - [ ] FastAPI on 127.0.0.1 + Next.js dashboard (design carried over from core_tracker)
 - [ ] Tray app and autostart via Task Scheduler

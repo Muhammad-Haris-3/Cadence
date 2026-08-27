@@ -43,6 +43,7 @@ def connect(path: Optional[Path] = None) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
     conn.executescript(SCHEMA)
+    migrate(conn)
     return conn
 
 
@@ -71,3 +72,15 @@ def close_dangling(conn) -> int:
         "WHERE ended_at IS NULL"
     )
     return cur.rowcount
+
+
+def migrate(conn) -> None:
+    """Additive migrations for databases created by an earlier version."""
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(segments)")}
+    if "host" not in columns:
+        conn.execute("ALTER TABLE segments ADD COLUMN host TEXT")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_segments_host ON segments (day, host)")
+
+
+def set_segment_url(conn, seg_id, url, host) -> None:
+    conn.execute("UPDATE segments SET url = ?, host = ? WHERE id = ?", (url, host, seg_id))

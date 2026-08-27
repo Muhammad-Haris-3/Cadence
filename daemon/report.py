@@ -43,6 +43,19 @@ def main(day: str) -> None:
     for r in top:
         pct = (r["i"] / r["d"] * 100) if r["d"] else 0
         print(f"  {fmt(r['d']):>8}  {pct:>3.0f}%  {r['app']:<16} {(r['title'] or '')[:40]}")
+
+    sites = conn.execute(
+        "SELECT host, SUM(duration_sec) d, SUM(input_sec) i FROM segments "
+        "WHERE day = ? AND host IS NOT NULL GROUP BY host ORDER BY d DESC LIMIT 10",
+        (day,),
+    ).fetchall()
+    if sites:
+        print(f"
+  top sites
+  " + "-" * 62)
+        for r in sites:
+            pct = (r["i"] / r["d"] * 100) if r["d"] else 0
+            print(f"  {fmt(r['d']):>8}  {pct:>3.0f}%  {r['host']}")
     print()
 
 
