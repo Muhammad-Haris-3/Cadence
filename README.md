@@ -98,7 +98,7 @@ docs/
 - [x] Foreground window + idle sampling into SQLite
 - [x] Rule-based categorization and a daily terminal report
 - [x] Chrome extension reporting the active tab URL to localhost
-- [ ] Sessionizer: merge fragmented segments into meaningful work blocks
+- [x] Sessionizer: merge fragmented segments into meaningful work blocks
 - [ ] FastAPI on 127.0.0.1 + Next.js dashboard (design carried over from core_tracker)
 - [ ] Tray app and autostart via Task Scheduler
 - [ ] AI daily summary (read the DB from Claude Code -- free -- or a nightly API call)
