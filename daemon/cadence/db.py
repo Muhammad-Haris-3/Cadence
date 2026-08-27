@@ -63,8 +63,25 @@ def connect(path: Optional[Path] = None) -> sqlite3.Connection:
     # WAL lets the dashboard read while the tracker is mid-write.
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
+    # The dashboard runs on its own thread and may rebuild an old day's sessions
+    # while the sampler is flushing. SQLite allows one writer, so make the second
+    # one wait rather than fail.
+    conn.execute("PRAGMA busy_timeout=5000")
     conn.executescript(SCHEMA)
     migrate(conn)
+    return conn
+
+
+def read_connection() -> sqlite3.Connection:
+    """A fresh connection for a dashboard request.
+
+    SQLite connections have thread affinity, so the web thread cannot borrow the
+    sampler's. Opening one per request is cheap and sidesteps the problem
+    entirely; schema setup is skipped since the sampler has already run it.
+    """
+    conn = sqlite3.connect(config.DB_PATH, isolation_level=None)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout=5000")
     return conn
 
 

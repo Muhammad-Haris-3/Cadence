@@ -100,10 +100,12 @@ def build_app(token: str, state: TabState = STATE) -> FastAPI:
     return app
 
 
-def serve_in_background(token: str) -> threading.Thread:
+def serve_in_background(token: str, app=None) -> threading.Thread:
+    """Run the HTTP server on a daemon thread. `app` defaults to ingest alone;
+    main.py passes the dashboard app, which wraps it."""
     server = uvicorn.Server(
         uvicorn.Config(
-            build_app(token),
+            app or build_app(token),
             host=config.INGEST_HOST,
             port=config.INGEST_PORT,
             log_level="warning",

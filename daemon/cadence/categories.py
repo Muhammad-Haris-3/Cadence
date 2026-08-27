@@ -37,9 +37,18 @@ def categorize(app: str, title: str = "", url: str = "") -> str:
     return "other"
 
 
-def backfill(conn) -> int:
-    """Recategorize every segment. Cheap, and safe to rerun after editing RULES."""
-    rows = conn.execute("SELECT id, app, title, url FROM segments").fetchall()
+def backfill(conn, day=None) -> int:
+    """Recategorize segments. Safe to rerun after editing RULES.
+
+    Scoped to one day when given, so the sampler's periodic pass stays cheap as
+    the database grows; unscoped for a full reprocess after a rules change.
+    """
+    if day is None:
+        rows = conn.execute("SELECT id, app, title, url FROM segments").fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT id, app, title, url FROM segments WHERE day = ?", (day,)
+        ).fetchall()
     for r in rows:
         conn.execute(
             "UPDATE segments SET category = ? WHERE id = ?",

@@ -13,9 +13,13 @@ Cadence has two presentation surfaces, and they share one voice.
 - **The terminal report** (`report.py`) is the MVP surface and remains the
   fastest path to the data. It must stay readable in a plain console with no
   color support.
-- **The local dashboard** (planned) inherits the core-tracker design system
-  wholesale -- palette, typography, spatial rhythm -- so the two projects feel
-  like one body of work.
+- **The local dashboard**, served by the daemon at `127.0.0.1:8765`, inherits
+  the core-tracker design system wholesale -- palette, typography, spatial
+  rhythm -- so the two projects feel like one body of work. It is a single
+  static page rather than a Next.js application: the design system is CSS
+  variables and web fonts, which need no component framework, and a tracker that
+  runs continuously should not need a second process started before its own data
+  can be read.
 
 ## 2. Color Palette (CSS Variables)
 
@@ -66,7 +70,34 @@ The terminal surface has its own constraints and they are binding.
   script while the Windows console defaults to cp1252; one exotic tab title must
   never be able to kill the report.
 
-## 5. Information Hierarchy
+## 5. Dashboard Conventions
+
+The dashboard obeys the terminal report's hierarchy and adds the affordances a
+screen allows.
+
+- **The day band** is the one element with no terminal equivalent: a full
+  24-hour strip with each session positioned by its true clock offset, so the
+  shape of the day is legible before a single number is read. Gaps are left
+  empty rather than filled with grey -- absence is shown by absence.
+- **Category color appears only in data.** Dots, band blocks, and meter fills
+  carry it; headings, borders, and body text never do.
+- **Meters over bars.** A 4px rule with a colored fill, not a chart. The number
+  sits beside it in muted text, because the figure is the fact and the meter is
+  only the shape of it.
+- **Tabular figures everywhere** (`font-variant-numeric: tabular-nums`), with
+  numeric columns right-aligned and text columns left-aligned, so durations form
+  a readable column rather than a ragged one.
+- **Long titles truncate with an ellipsis** and keep their full text in the
+  native tooltip. A window title must never be allowed to reflow the table.
+- **Section omission over empty state.** A section with no data is not rendered
+  at all; only the sessions list, which is the point of the page, states its
+  own absence in the display face.
+- **Quiet liveness.** Today's view refetches on a slow interval with no spinner,
+  no flash, and no "last updated" chrome. Historical days do not poll.
+- **Keyboard first.** Left and right arrows move between days; forward is
+  disabled on today rather than hidden, so the boundary is visible.
+
+## 6. Information Hierarchy
 
 The report is ordered by how a person actually asks about their day.
 
@@ -80,7 +111,7 @@ The report is ordered by how a person actually asks about their day.
 Absence of data is rendered as absence, not as zero. A section with nothing to
 report is omitted rather than shown empty.
 
-## 6. Tone of Reported Numbers
+## 7. Tone of Reported Numbers
 
 - **Report, never scold.** No red, no warnings, no streak-breaking language, no
   goals the user did not set. The distraction category is styled as calmly as
@@ -92,8 +123,11 @@ report is omitted rather than shown empty.
 - **Show the working.** Every derived number must be traceable to the segments
   behind it, so a surprising figure can be investigated rather than merely
   disbelieved.
+- **Say what the score is not.** The dashboard footer states in plain words that
+  focus is a heuristic and not a measure of worth. A number this easy to
+  over-read must carry its own disclaimer on the page, not only in the docs.
 
-## 7. Extension Options Screen Pattern
+## 8. Extension Options Screen Pattern
 
 The one browser-facing surface follows the same restraint.
 

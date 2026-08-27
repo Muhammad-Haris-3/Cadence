@@ -17,7 +17,7 @@ import signal
 import time
 from datetime import datetime
 
-from . import config, db
+from . import categories, config, db, sessionizer
 from .ingest import STATE as TAB_STATE
 from .win_probe import foreground_window, idle_millis, last_input_tick
 
@@ -41,6 +41,7 @@ class Tracker:
 
         self._prev_input_tick = last_input_tick()
         self._since_flush = 0.0
+        self._since_sessionize = 0.0
         self._stop = False
 
     # -- segment lifecycle -------------------------------------------------
@@ -112,6 +113,19 @@ class Tracker:
         self._since_flush += self.poll
         if self._since_flush >= self.flush_every:
             self._flush()
+
+        self._since_sessionize += self.poll
+        if self._since_sessionize >= config.SESSIONIZE_EVERY_SECONDS:
+            self._sessionize()
+
+    def _sessionize(self):
+        """Keep today's derived view current so the dashboard reads a fresh
+        picture without the web thread ever taking the write lock."""
+        self._since_sessionize = 0.0
+        today = datetime.now().strftime("%Y-%m-%d")
+        self._flush()
+        categories.backfill(self.conn, today)
+        sessionizer.rebuild(self.conn, today)
 
     def _enrich_with_tab(self, app):
         """Attach the reported tab URL to a browser segment.

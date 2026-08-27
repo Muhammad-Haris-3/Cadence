@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cadence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-primary:     #F5F5F4;
+    --text-primary:   #1C1917;
+    --text-secondary: #78716C;
+    --border-subtle:  #E7E5E4;
+
+    --cat-code:        #4C4FA8;
+    --cat-learning:    #2F8F87;
+    --cat-docs:        #4F7CA8;
+    --cat-design:      #8A5CA8;
+    --cat-ai:          #7A6BA8;
+    --cat-comms:       #B98B3E;
+    --cat-distraction: #B5697E;
+    --cat-browsing:    #7D8A97;
+    --cat-other:       #A8A29E;
+    --cat-idle:        #D6D3D1;
+    --cat-away:        #D6D3D1;
+
+    --display: "Caveat", ui-serif, Georgia, serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 4rem 1.5rem 6rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.6;
+    font-variant-numeric: tabular-nums;
+  }
+
+  main { max-width: 1080px; margin: 0 auto; }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 2rem; flex-wrap: wrap; }
+
+  h1 {
+    font-family: var(--display);
+    font-size: 2.75rem;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1;
+  }
+
+  nav { display: flex; align-items: center; gap: 1rem; }
+
+  nav button {
+    font: inherit;
+    font-size: 1rem;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: .2rem .5rem;
+    border-radius: 4px;
+  }
+  nav button:hover:not(:disabled) { color: var(--text-primary); background: var(--border-subtle); }
+  nav button:disabled { opacity: .25; cursor: default; }
+
+  #day-label { min-width: 11ch; text-align: center; font-weight: 500; }
+
+  .summary {
+    font-family: var(--display);
+    font-size: 1.6rem;
+    color: var(--text-secondary);
+    margin: .75rem 0 3.5rem;
+  }
+  .summary strong { color: var(--text-primary); font-weight: 600; }
+
+  section { margin-bottom: 3.5rem; }
+
+  h2 {
+    font-size: .75rem;
+    font-weight: 500;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin: 0 0 1.25rem;
+  }
+
+  .timeline { position: relative; height: 42px; }
+
+  .timeline .block {
+    position: absolute;
+    top: 0;
+    height: 42px;
+    border-radius: 2px;
+    min-width: 2px;
+  }
+
+  .hours { position: relative; height: 1.4rem; margin-top: .4rem; }
+  .hours span {
+    position: absolute;
+    transform: translateX(-50%);
+    font-size: .7rem;
+    color: var(--text-secondary);
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  td, th {
+    padding: .55rem 0;
+    border-bottom: 1px solid var(--border-subtle);
+    text-align: left;
+    font-weight: 400;
+  }
+  tr:last-child td { border-bottom: none; }
+
+  th {
+    font-size: .7rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    padding-bottom: .5rem;
+  }
+
+  .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .muted { color: var(--text-secondary); }
+  .truncate { max-width: 1px; width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .dot {
+    display: inline-block;
+    width: .55rem; height: .55rem;
+    border-radius: 50%;
+    margin-right: .55rem;
+  }
+
+  .meter { display: inline-block; width: 110px; height: 4px; background: var(--border-subtle); border-radius: 2px; vertical-align: middle; }
+  .meter > i { display: block; height: 4px; border-radius: 2px; }
+
+  .note { color: var(--text-secondary); font-size: .8rem; }
+
+  .empty {
+    color: var(--text-secondary);
+    font-family: var(--display);
+    font-size: 1.4rem;
+    padding: 2rem 0;
+  }
+
+  footer { color: var(--text-secondary); font-size: .75rem; margin-top: 4rem; line-height: 1.8; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Cadence</h1>
+    <nav>
+      <button id="prev" title="Previous day">&larr;</button>
+      <span id="day-label">&nbsp;</span>
+      <button id="next" title="Next day">&rarr;</button>
+    </nav>
+  </header>
+
+  <p class="summary" id="summary">&nbsp;</p>
+  <div id="content"></div>
+
+  <footer>
+    Window metadata only &mdash; no keystroke content, nothing leaves this machine.<br />
+    Focus is a heuristic built from presence, engagement and continuity. It is not a measure of worth.
+  </footer>
+</main>
+
+<script>
+const POLL_MS = 20000;
+const KNOWN = ["code", "learning", "docs", "design", "ai", "comms", "distraction", "browsing", "other", "idle", "away"];
+
+let currentDay = new URLSearchParams(location.search).get("day");
+let timer = null;
+
+const el = (id) => document.getElementById(id);
+const color = (c) => "var(--cat-" + (KNOWN.includes(c) ? c : "other") + ")";
+
+function fmt(seconds) {
+  const total = Math.round(seconds || 0);
+  if (total < 60) return total + "s";
+  const m = Math.floor(total / 60), s = total % 60;
+  if (m < 60) return m + "m " + String(s).padStart(2, "0") + "s";
+  return Math.floor(m / 60) + "h " + String(m % 60).padStart(2, "0") + "m";
+}
+
+function pct(part, whole) {
+  return whole > 0 ? Math.round((part / whole) * 100) : 0;
+}
+
+function esc(text) {
+  const d = document.createElement("div");
+  d.textContent = text == null ? "" : text;
+  return d.innerHTML;
+}
+
+function longDate(day) {
+  const parts = day.split("-").map(Number);
+  return new Date(parts[0], parts[1] - 1, parts[2])
+    .toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function timeline(sessions) {
+  if (!sessions.length) return "";
+
+  const blocks = sessions.map(function (s) {
+    const left = (s.offset_sec / 86400) * 100;
+    const width = Math.max((s.duration_sec / 86400) * 100, 0.15);
+    const label = s.category + " · " + fmt(s.duration_sec) + " · " + (s.top_title || s.top_app);
+    return '<div class="block" style="left:' + left + "%;width:" + width + "%;background:" +
+      color(s.category) + '" title="' + esc(label) + '"></div>';
+  }).join("");
+
+  const hours = [0, 3, 6, 9, 12, 15, 18, 21, 24].map(function (h) {
+    return '<span style="left:' + ((h / 24) * 100) + '%">' + String(h).padStart(2, "0") + "</span>";
+  }).join("");
+
+  return '<section><h2>The day</h2><div class="timeline">' + blocks +
+    '</div><div class="hours">' + hours + "</div></section>";
+}
+
+function sessionTable(sessions) {
+  if (!sessions.length) {
+    return '<section><h2>Sessions</h2><p class="empty">Nothing long enough to call a session yet.</p></section>';
+  }
+
+  const rows = sessions.map(function (s) {
+    const interruptions = s.interruptions
+      ? '<span class="note">+' + s.interruptions + " interruption" + (s.interruptions > 1 ? "s" : "") + "</span>"
+      : "";
+    return "<tr>" +
+      '<td class="num muted">' + s.start.slice(11, 16) + "</td>" +
+      '<td class="num">' + fmt(s.duration_sec) + "</td>" +
+      '<td class="num" style="width:170px"><span class="meter"><i style="width:' +
+        Math.min(s.focus_score, 100) + "%;background:" + color(s.category) +
+        '"></i></span><span class="muted" style="margin-left:.6rem">' + Math.round(s.focus_score) + "</span></td>" +
+      '<td><span class="dot" style="background:' + color(s.category) + '"></span>' + esc(s.category) + "</td>" +
+      '<td class="truncate">' + esc(s.top_title || s.top_app) + " " + interruptions + "</td>" +
+      "</tr>";
+  }).join("");
+
+  return "<section><h2>Sessions</h2><table>" +
+    '<tr><th class="num">Start</th><th class="num">Length</th><th class="num">Focus</th><th>Category</th><th>What</th></tr>' +
+    rows + "</table></section>";
+}
+
+function categoryTable(categories) {
+  const real = categories.filter(function (c) {
+    return c.category && c.category !== "idle" && c.category !== "away";
+  });
+  if (!real.length) return "";
+
+  const rows = real.map(function (c) {
+    const engagement = pct(c.input_sec, c.duration_sec);
+    return "<tr>" +
+      '<td><span class="dot" style="background:' + color(c.category) + '"></span>' + esc(c.category) + "</td>" +
+      '<td class="num">' + fmt(c.duration_sec) + "</td>" +
+      '<td class="num muted">' + fmt(c.input_sec) + "</td>" +
+      '<td class="num" style="width:170px"><span class="meter"><i style="width:' + engagement +
+        "%;background:" + color(c.category) + '"></i></span><span class="muted" style="margin-left:.6rem">' +
+        engagement + "%</span></td>" +
+      "</tr>";
+  }).join("");
+
+  return "<section><h2>Where the time went</h2><table>" +
+    '<tr><th>Category</th><th class="num">Open</th><th class="num">Engaged</th><th class="num">Engagement</th></tr>' +
+    rows + "</table></section>";
+}
+
+function listTable(title, items, label) {
+  if (!items.length) return "";
+
+  const rows = items.map(function (i) {
+    return "<tr>" +
+      '<td class="truncate">' + esc(label(i)) + "</td>" +
+      '<td class="num">' + fmt(i.duration_sec) + "</td>" +
+      '<td class="num muted">' + pct(i.input_sec, i.duration_sec) + "%</td>" +
+      "</tr>";
+  }).join("");
+
+  return "<section><h2>" + title + "</h2><table>" +
+    '<tr><th></th><th class="num">Open</th><th class="num">Engaged</th></tr>' +
+    rows + "</table></section>";
+}
+
+function render(data) {
+  currentDay = data.day;
+  el("day-label").textContent = data.is_today ? "Today" : longDate(data.day);
+  el("next").disabled = data.is_today;
+
+  const s = data.summary;
+  el("summary").innerHTML = s.sessions
+    ? "<strong>" + s.sessions + "</strong> session" + (s.sessions > 1 ? "s" : "") +
+      " &middot; <strong>" + fmt(s.blocks_sec) + "</strong> in blocks" +
+      " &middot; longest <strong>" + fmt(s.longest_sec) + "</strong>"
+    : "Nothing tracked on this day.";
+
+  el("content").innerHTML =
+    timeline(data.sessions) +
+    sessionTable(data.sessions) +
+    categoryTable(data.categories) +
+    listTable("Top windows", data.windows, function (w) { return w.title || w.app; }) +
+    listTable("Top sites", data.sites, function (x) { return x.host; });
+
+  history.replaceState(null, "", "?day=" + data.day);
+
+  clearTimeout(timer);
+  if (data.is_today) timer = setTimeout(function () { load(currentDay); }, POLL_MS);
+}
+
+async function load(day) {
+  try {
+    let target = day;
+    if (!target) {
+      const days = await (await fetch("/api/days")).json();
+      target = days.today;
+    }
+    render(await (await fetch("/api/day/" + target)).json());
+  } catch (err) {
+    el("summary").textContent = "Can't reach the tracker. Is the daemon running?";
+  }
+}
+
+function shift(days) {
+  const parts = currentDay.split("-").map(Number);
+  const moved = new Date(parts[0], parts[1] - 1, parts[2] + days);
+  const iso = moved.getFullYear() + "-" +
+    String(moved.getMonth() + 1).padStart(2, "0") + "-" +
+    String(moved.getDate()).padStart(2, "0");
+  load(iso);
+}
+
+el("prev").addEventListener("click", function () { shift(-1); });
+el("next").addEventListener("click", function () { shift(1); });
+document.addEventListener("keydown", function (e) {
+  if (e.key === "ArrowLeft") shift(-1);
+  if (e.key === "ArrowRight" && !el("next").disabled) shift(1);
+});
+
+load(currentDay);
+</script>
+</body>
+</html>

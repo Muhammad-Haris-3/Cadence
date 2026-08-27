@@ -79,3 +79,14 @@ MIN_SESSION_SECONDS = 120
 # like, so the tolerance is set well above zero; below ~2/min reads as deep
 # focus, above ~12/min as genuinely scattered.
 SWITCH_TOLERANCE = 6.0
+
+
+# --- dashboard ---------------------------------------------------------------
+
+# How often the sampler rebuilds today's sessions, so the dashboard shows a
+# current view without the web thread ever needing to write.
+SESSIONIZE_EVERY_SECONDS = 60
+
+# How often the open dashboard refetches. Long enough to be quiet, short enough
+# that the page is never visibly stale.
+DASHBOARD_POLL_SECONDS = 20

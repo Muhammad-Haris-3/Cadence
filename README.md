@@ -35,7 +35,10 @@ py -m venv .venv
 .venv\Scripts\python main.py
 ```
 
-Then, any time:
+The dashboard is then at **http://127.0.0.1:8765/** for as long as the daemon
+runs -- no build step, no second process. Arrow keys move between days.
+
+Or, in the terminal:
 
 ```
 .venv\Scripts\python report.py            # today
@@ -86,7 +89,9 @@ daemon/
     urls.py        strips credentials out of reported URLs
     ingest.py      localhost endpoint the browser extension reports to
     categories.py  app/title -> category rules
-  main.py          start tracking (sampler + ingest)
+    web.py         dashboard JSON API and page routes
+    static/        the dashboard page
+  main.py          start tracking (sampler + web server)
   report.py        daily breakdown
   tests/           end-to-end ingest check
 extension/         unpacked Chrome MV3 extension
@@ -99,6 +104,6 @@ docs/
 - [x] Rule-based categorization and a daily terminal report
 - [x] Chrome extension reporting the active tab URL to localhost
 - [x] Sessionizer: merge fragmented segments into meaningful work blocks
-- [ ] FastAPI on 127.0.0.1 + Next.js dashboard (design carried over from core_tracker)
+- [x] Local dashboard at 127.0.0.1:8765, served by the daemon (design carried over from core_tracker)
 - [ ] Tray app and autostart via Task Scheduler
 - [ ] AI daily summary (read the DB from Claude Code -- free -- or a nightly API call)

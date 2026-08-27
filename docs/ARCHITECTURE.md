@@ -8,7 +8,8 @@
 
 - `/daemon`: Python application responsible for sampling the foreground window,
   measuring idle and input, persisting segments, receiving browser tab reports,
-  categorizing, sessionizing, and reporting.
+  categorizing, sessionizing, reporting, and serving the dashboard.
+- `/daemon/cadence/static`: the dashboard page, served by the daemon itself.
 - `/extension`: Unpacked Chrome MV3 extension that reports the active tab to the
   daemon over loopback.
 - `/docs`: Product, design, and architecture reference documents.
@@ -20,14 +21,29 @@ The system is a single process with two threads and one file.
 - **Main thread -- the sampler.** Wakes once per `POLL_SECONDS`, asks Windows
   which window holds foreground and how long since the last input, and folds the
   answer into the open segment. Owns all database writes.
-- **Daemon thread -- the ingest server.** A FastAPI application bound to
-  `127.0.0.1` receiving active-tab reports from the browser extension. Owns no
-  database access; it updates one in-memory slot that the sampler reads.
+- **Daemon thread -- the web server.** A FastAPI application bound to
+  `127.0.0.1` serving three things: the tab-ingest endpoint, the dashboard JSON
+  API, and the dashboard page. It holds one in-memory slot for the latest tab
+  report, which the sampler reads.
 - **SQLite** is the sole source of truth, in WAL mode so a dashboard or an ad-hoc
   query can read while the sampler writes.
 
-There is no server, no account, and no network egress. The only listening socket
-is on loopback.
+There is no account and no network egress. The only listening socket is on
+loopback.
+
+**The dashboard is served by the daemon rather than by a separate Next.js app.**
+A tracker intended to run continuously should not require a second process to be
+started before its own data can be read, and the design system carries over as
+CSS variables and web fonts, which need no build step or component framework.
+The JSON API is framework-agnostic, so a Next.js client remains possible later
+without changing the daemon.
+
+**Write ownership.** The sampler performs every write, including the periodic
+session rebuild it runs every `SESSIONIZE_EVERY_SECONDS`. The dashboard is
+read-only in the normal case, opening a fresh connection per request because
+SQLite connections have thread affinity. The one exception is opening a
+historical day whose sessions were never built; a `busy_timeout` makes that
+rebuild wait for the write lock rather than fail.
 
 ## 3. Data Flow
 
@@ -143,14 +159,32 @@ survive -- YouTube's `v` and `list`, for example. Non-HTTP schemes (`chrome://`,
 `file://`, `devtools://`) are never recorded. The window title already carries
 the human-readable subject, which is what categorization needs.
 
-## 9. Migration Strategy
+## 9. Dashboard
+
+Served at `http://127.0.0.1:8765/` whenever the daemon is running.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /` | The dashboard page |
+| `GET /api/days` | Days that have data, plus today's date |
+| `GET /api/day/{day}` | Summary, sessions, categories, top windows, top sites |
+| `POST /tab` | Browser tab ingest (see section 8) |
+| `GET /health` | Liveness, plus the currently reported host |
+
+The day payload carries `offset_sec` per session -- seconds since local midnight
+-- so the timeline band can be positioned without the client parsing timestamps.
+Navigation is by `?day=YYYY-MM-DD`, with arrow keys bound to the adjacent days
+and forward navigation disabled on today. While today is displayed the page
+refetches every `DASHBOARD_POLL_SECONDS`; historical days do not poll.
+
+## 10. Migration Strategy
 
 `db.migrate()` runs on every connect and applies additive migrations only --
 `ALTER TABLE ... ADD COLUMN` guarded by a `PRAGMA table_info` check. Because
 sessions and categories are derived, no data migration is required when their
 rules change; the affected days are simply recomputed.
 
-## 10. Privacy Boundary Implemented in Code
+## 11. Privacy Boundary Implemented in Code
 
 - `win_probe.py` reads window metadata and the *timestamp* of the last input.
   There is no keyboard hook, and keystroke content is not obtainable from the
@@ -161,3 +195,6 @@ rules change; the affected days are simply recomputed.
   allowlist.
 - The database and the pairing token live under `~/.cadence/` and are excluded
   from version control.
+- The dashboard renders every window title and host through a text-node escape
+  rather than as raw markup, since titles are attacker-influenced strings that
+  arrive from whatever page happens to be open.
