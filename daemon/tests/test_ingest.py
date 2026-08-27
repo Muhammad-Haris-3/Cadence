@@ -1,13 +1,20 @@
-"""End-to-end check: extension POST -> ingest -> tracker -> SQLite."""
+"""End-to-end check: extension POST -> ingest -> tracker -> SQLite.
+
+The requests are driven straight into the ASGI application rather than over a
+socket. Binding the real port made this suite unrunnable whenever Cadence itself
+was running -- the requests reached the live daemon, which holds a different
+token, and every assertion failed with a 401 that looked like a broken test. The
+whole contract under test (token, origin, validation, routing) lives in the app
+object, so nothing is lost by leaving the network out of it.
+"""
 
 import json
 import os
 import sys
 import tempfile
-import time
-import urllib.error
-import urllib.request
 from pathlib import Path
+
+import anyio
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ["CADENCE_DATA_DIR"] = tempfile.mkdtemp(prefix="cadence-test-")
@@ -17,19 +24,58 @@ from cadence.tracker import Tracker  # noqa: E402
 from cadence.win_probe import Window  # noqa: E402
 
 TOKEN = "test-token-abc"
-URL = f"http://{config.INGEST_HOST}:{config.INGEST_PORT}/tab"
+APP = ingest.build_app(TOKEN)
+
+
+def call(method, path, payload=None, headers=None):
+    """Send one request through the ASGI app, in this process."""
+    body = b"" if payload is None else json.dumps(payload).encode()
+    raw_headers = [(k.lower().encode(), v.encode()) for k, v in (headers or {}).items()]
+    if payload is not None:
+        raw_headers.append((b"content-type", b"application/json"))
+        raw_headers.append((b"content-length", str(len(body)).encode()))
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.3"},
+        "http_version": "1.1",
+        "method": method,
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode(),
+        "query_string": b"",
+        "root_path": "",
+        "headers": raw_headers,
+        "client": ("127.0.0.1", 0),
+        "server": (config.INGEST_HOST, config.INGEST_PORT),
+    }
+
+    status, chunks = {}, []
+
+    async def receive():
+        return {"type": "http.request", "body": body, "more_body": False}
+
+    async def send(message):
+        if message["type"] == "http.response.start":
+            status["code"] = message["status"]
+        elif message["type"] == "http.response.body":
+            chunks.append(message.get("body", b""))
+
+    anyio.run(APP, scope, receive, send)
+
+    raw = b"".join(chunks)
+    # A rejection returns its detail as JSON too, but the callers only ever read
+    # a body after a success, so mirror the old helper and hand back None.
+    if status["code"] >= 400:
+        return status["code"], None
+    return status["code"], (json.loads(raw) if raw else None)
 
 
 def post(payload, token=TOKEN, origin=None):
-    headers = {"Content-Type": "application/json", "X-Cadence-Token": token}
+    headers = {"X-Cadence-Token": token}
     if origin:
         headers["Origin"] = origin
-    req = urllib.request.Request(URL, data=json.dumps(payload).encode(), headers=headers, method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=5) as res:
-            return res.status, json.load(res)
-    except urllib.error.HTTPError as e:
-        return e.code, None
+    return call("POST", "/tab", payload, headers)
 
 
 def check(label, got, want):
@@ -39,14 +85,6 @@ def check(label, got, want):
 
 
 def main():
-    ingest.serve_in_background(TOKEN)
-    for _ in range(50):  # wait for the thread's server to bind
-        try:
-            urllib.request.urlopen(f"http://{config.INGEST_HOST}:{config.INGEST_PORT}/health", timeout=1)
-            break
-        except Exception:
-            time.sleep(0.1)
-
     results = []
     print("\nendpoint")
     results.append(check("valid token accepted", post({"url": "https://example.com/a", "title": "A"})[0], 200))
