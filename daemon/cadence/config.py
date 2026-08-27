@@ -57,3 +57,25 @@ def load_or_create_token() -> str:
     token = secrets.token_urlsafe(24)
     TOKEN_PATH.write_text(token, encoding="utf-8")
     return token
+
+
+# --- sessionizing ------------------------------------------------------------
+
+# Idle for at least this long ends a session. Below it, the gap is absorbed --
+# thinking, reading, and making tea are part of the work, not breaks from it.
+IDLE_BREAK_SECONDS = 300
+
+# An off-category excursion shorter than this is an interruption inside the
+# session rather than a boundary between two. A thirty-second Slack check should
+# not turn one hour of work into two half-hours.
+MIN_SWITCH_SECONDS = 120
+
+# Sessions below this are noise in the report, though they stay in the database
+# so the day still adds up.
+MIN_SESSION_SECONDS = 120
+
+# Window switches per minute at which continuity is judged to have halved.
+# Alt-tabbing between an editor, a terminal and a doc page is what working looks
+# like, so the tolerance is set well above zero; below ~2/min reads as deep
+# focus, above ~12/min as genuinely scattered.
+SWITCH_TOLERANCE = 6.0

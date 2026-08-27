@@ -32,6 +32,27 @@ CREATE TABLE IF NOT EXISTS segments (
 CREATE INDEX IF NOT EXISTS idx_segments_day  ON segments (day);
 CREATE INDEX IF NOT EXISTS idx_segments_app  ON segments (day, app);
 CREATE INDEX IF NOT EXISTS idx_segments_open ON segments (ended_at) WHERE ended_at IS NULL;
+
+-- A session is a block of work as it was actually lived, grouped from the
+-- segments above. Always derived, never authoritative: it can be dropped and
+-- rebuilt from segments at any time.
+CREATE TABLE IF NOT EXISTS sessions (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at    TEXT    NOT NULL,
+    ended_at      TEXT    NOT NULL,
+    day           TEXT    NOT NULL,
+    duration_sec  REAL    NOT NULL DEFAULT 0,
+    active_sec    REAL    NOT NULL DEFAULT 0,
+    input_sec     REAL    NOT NULL DEFAULT 0,
+    category      TEXT,                        -- dominant category by duration
+    top_app       TEXT,
+    top_title     TEXT,
+    switches      INTEGER NOT NULL DEFAULT 0,  -- window changes within the block
+    interruptions INTEGER NOT NULL DEFAULT 0,  -- brief off-category excursions
+    focus_score   REAL                         -- 0-100 heuristic
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_day ON sessions (day);
 """
 
 
@@ -80,6 +101,9 @@ def migrate(conn) -> None:
     if "host" not in columns:
         conn.execute("ALTER TABLE segments ADD COLUMN host TEXT")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_segments_host ON segments (day, host)")
+    if "session_id" not in columns:
+        conn.execute("ALTER TABLE segments ADD COLUMN session_id INTEGER")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_segments_session ON segments (session_id)")
 
 
 def set_segment_url(conn, seg_id, url, host) -> None:
