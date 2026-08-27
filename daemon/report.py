@@ -5,10 +5,23 @@ from datetime import date
 
 from cadence import categories, db
 
+# Window titles are full of emoji and non-Latin text, and the Windows console
+# defaults to cp1252, which raises on both. Replace what can't be shown rather
+# than letting one exotic tab title kill the whole report.
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 
 def fmt(seconds: float) -> str:
-    m = int(seconds // 60)
-    return f"{m // 60}h {m % 60:02d}m" if m >= 60 else f"{m}m"
+    """Keep seconds visible under a minute -- a fresh database is all short
+    segments, and rounding them all to '0m' hides that anything was captured."""
+    total = int(seconds)
+    if total < 60:
+        return f"{total}s"
+    minutes, secs = divmod(total, 60)
+    if minutes < 60:
+        return f"{minutes}m {secs:02d}s"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h {minutes:02d}m"
 
 
 def main(day: str) -> None:
@@ -33,7 +46,7 @@ def main(day: str) -> None:
         bar = "#" * round(pct / 5)
         print(f"  {r['category']:<14}{fmt(r['d']):>9}{fmt(r['a']):>9}{fmt(r['i']):>9}   {bar} {pct:.0f}%")
 
-    print(f"\n  top windows\n  " + "-" * 62)
+    print("\n  top windows\n  " + "-" * 62)
     top = conn.execute(
         "SELECT app, title, SUM(duration_sec) d, SUM(input_sec) i FROM segments "
         "WHERE day = ? AND category NOT IN ('idle','away') "
@@ -50,9 +63,7 @@ def main(day: str) -> None:
         (day,),
     ).fetchall()
     if sites:
-        print(f"
-  top sites
-  " + "-" * 62)
+        print("\n  top sites\n  " + "-" * 62)
         for r in sites:
             pct = (r["i"] / r["d"] * 100) if r["d"] else 0
             print(f"  {fmt(r['d']):>8}  {pct:>3.0f}%  {r['host']}")
