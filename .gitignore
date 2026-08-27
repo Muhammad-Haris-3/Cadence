@@ -1,0 +1,19 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+.next/
+out/
+
+# Local data -- your activity database never belongs in git
+*.db
+*.db-wal
+*.db-shm
+data/
+
+# Environment
+.env
+.env.local
