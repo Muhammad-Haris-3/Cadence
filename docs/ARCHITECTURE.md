@@ -16,11 +16,13 @@
 
 ## 2. Runtime Architecture
 
-The system is a single process with two threads and one file.
+The system is a single process with two or three threads and one file.
 
-- **Main thread -- the sampler.** Wakes once per `POLL_SECONDS`, asks Windows
-  which window holds foreground and how long since the last input, and folds the
-  answer into the open segment. Owns all database writes.
+- **The sampler.** Wakes once per `POLL_SECONDS`, asks Windows which window
+  holds foreground and how long since the last input, and folds the answer into
+  the open segment. Owns all database writes. Runs on the main thread under
+  `main.py`, and on a worker under the tray app -- which is why it opens its own
+  connection there, since SQLite connections have thread affinity.
 - **Daemon thread -- the web server.** A FastAPI application bound to
   `127.0.0.1` serving three things: the tab-ingest endpoint, the dashboard JSON
   API, and the dashboard page. It holds one in-memory slot for the latest tab
@@ -159,7 +161,34 @@ survive -- YouTube's `v` and `list`, for example. Non-HTTP schemes (`chrome://`,
 `file://`, `devtools://`) are never recorded. The window title already carries
 the human-readable subject, which is what categorization needs.
 
-## 9. Dashboard
+## 9. Tray Application and Autostart
+
+`tray_app.pyw` is the everyday entry point; `main.py` remains for running in the
+foreground with a console. The tray app holds the main thread for pystray's
+Windows message loop, so the sampler moves to a worker and the web server keeps
+its own daemon thread.
+
+The menu is deliberately four items: open the dashboard (also the double-click
+default), pause or resume, and quit. Pausing closes the open segment rather than
+leaving one enormous one, so a pause reads as a real hole in the record. Quitting
+stops the sampler through its normal path, which flushes the open segment.
+
+**Single instance.** Both entry points call `ingest.port_in_use()` before
+starting anything. Two samplers against one database would count every second
+twice, which is worse than refusing to launch. The tray app reports this through
+a message box, since a process started at logon has no console to print to.
+
+**Autostart** is offered by two mechanisms, because they fail in different
+situations. A **scheduled task** (`schtasks /Create /SC ONLOGON`) is preferred:
+it delays past the logon rush, and it is visible and removable from a UI the user
+already knows. But its creation is denied under some machine policies. A
+**Startup-folder shortcut** needs no elevation and works everywhere, at the cost
+of no delay control. The shortcut is created through `WScript.Shell` so it points
+straight at `pythonw.exe`; a `.cmd` file there would flash a console at every
+logon. Both run unelevated -- tracking needs no privileges and should never ask
+for any.
+
+## 10. Dashboard
 
 Served at `http://127.0.0.1:8765/` whenever the daemon is running.
 
@@ -177,14 +206,14 @@ Navigation is by `?day=YYYY-MM-DD`, with arrow keys bound to the adjacent days
 and forward navigation disabled on today. While today is displayed the page
 refetches every `DASHBOARD_POLL_SECONDS`; historical days do not poll.
 
-## 10. Migration Strategy
+## 11. Migration Strategy
 
 `db.migrate()` runs on every connect and applies additive migrations only --
 `ALTER TABLE ... ADD COLUMN` guarded by a `PRAGMA table_info` check. Because
 sessions and categories are derived, no data migration is required when their
 rules change; the affected days are simply recomputed.
 
-## 11. Privacy Boundary Implemented in Code
+## 12. Privacy Boundary Implemented in Code
 
 - `win_probe.py` reads window metadata and the *timestamp* of the last input.
   There is no keyboard hook, and keystroke content is not obtainable from the

@@ -12,6 +12,7 @@ you happen to be visiting -- can reach a loopback port:
      for curl and tests) are accepted.
 """
 
+import socket
 import threading
 import time
 from dataclasses import dataclass
@@ -98,6 +99,22 @@ def build_app(token: str, state: TabState = STATE) -> FastAPI:
         return {"ok": True, "current_host": tab.host if tab else None}
 
     return app
+
+
+def port_in_use() -> bool:
+    """Whether another Cadence already holds the port.
+
+    Two samplers on one database would double-count every second, so both entry
+    points check this before starting anything.
+    """
+    probe = socket.socket()
+    try:
+        probe.bind((config.INGEST_HOST, config.INGEST_PORT))
+        return False
+    except OSError:
+        return True
+    finally:
+        probe.close()
 
 
 def serve_in_background(token: str, app=None) -> threading.Thread:

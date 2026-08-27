@@ -14,6 +14,7 @@ accumulates duration and nothing else.
 """
 
 import signal
+import threading
 import time
 from datetime import datetime
 
@@ -43,6 +44,7 @@ class Tracker:
         self._since_flush = 0.0
         self._since_sessionize = 0.0
         self._stop = False
+        self.paused = False
 
     # -- segment lifecycle -------------------------------------------------
 
@@ -80,6 +82,9 @@ class Tracker:
         self._stop = True
 
     def tick(self):
+        if self.paused:
+            return
+
         idle_ms = idle_millis()
         is_idle = idle_ms > self.idle_threshold_ms
 
@@ -144,9 +149,25 @@ class Tracker:
         db.set_segment_url(self.conn, self.seg_id, tab.url, tab.host)
         self.seg_url = tab.url
 
+    def pause(self):
+        """Stop attributing time, and close the open segment so the pause is a
+        real hole in the record rather than one enormous segment."""
+        if not self.paused:
+            self._flush(closing=True)
+            self.seg_id = None
+            self.seg_key = None
+            self.paused = True
+
+    def resume(self):
+        self.paused = False
+
     def run(self):
-        signal.signal(signal.SIGINT, self.stop)
-        signal.signal(signal.SIGTERM, self.stop)
+        # Signal handlers can only be installed from the main thread. Under the
+        # tray app the sampler runs on a worker, where ctrl-c is not the exit
+        # path anyway.
+        if threading.current_thread() is threading.main_thread():
+            signal.signal(signal.SIGINT, self.stop)
+            signal.signal(signal.SIGTERM, self.stop)
 
         closed = db.close_dangling(self.conn)
         if closed:

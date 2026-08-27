@@ -32,8 +32,30 @@ from the database. Everything is written to a single SQLite file under
 cd daemon
 py -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
-.venv\Scripts\python main.py
+.venv\Scripts\pythonw tray_app.pyw
 ```
+
+That puts an icon in the tray: three bars, charcoal while tracking and muted
+while paused. Double-click opens the dashboard; right-click pauses or quits.
+
+To start it automatically with Windows:
+
+```
+.venv\Scripts\python autostart.py install
+```
+
+If your machine's policy blocks creating scheduled tasks, use the mechanism that
+needs no elevation instead:
+
+```
+.venv\Scripts\python autostart.py install startup
+```
+
+`autostart.py status` shows what is registered, and `autostart.py uninstall`
+removes it. Only one instance can run at a time -- a second refuses to start
+rather than counting every second twice.
+
+To run in the foreground with a console instead, use `.venv\Scripts\python main.py`.
 
 The dashboard is then at **http://127.0.0.1:8765/** for as long as the daemon
 runs -- no build step, no second process. Arrow keys move between days.
@@ -90,8 +112,11 @@ daemon/
     ingest.py      localhost endpoint the browser extension reports to
     categories.py  app/title -> category rules
     web.py         dashboard JSON API and page routes
+    tray.py        tray icon, pause/resume, single-instance guard
     static/        the dashboard page
-  main.py          start tracking (sampler + web server)
+  tray_app.pyw     everyday entry point, no console
+  main.py          foreground entry point, with a console
+  autostart.py     register or remove the logon task
   report.py        daily breakdown
   tests/           end-to-end ingest check
 extension/         unpacked Chrome MV3 extension
@@ -105,5 +130,5 @@ docs/
 - [x] Chrome extension reporting the active tab URL to localhost
 - [x] Sessionizer: merge fragmented segments into meaningful work blocks
 - [x] Local dashboard at 127.0.0.1:8765, served by the daemon (design carried over from core_tracker)
-- [ ] Tray app and autostart via Task Scheduler
+- [x] Tray app and autostart via Task Scheduler
 - [ ] AI daily summary (read the DB from Claude Code -- free -- or a nightly API call)

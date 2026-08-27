@@ -97,7 +97,24 @@ screen allows.
 - **Keyboard first.** Left and right arrows move between days; forward is
   disabled on today rather than hidden, so the boundary is visible.
 
-## 6. Information Hierarchy
+## 6. Tray Icon
+
+The only surface visible while you work, so it says exactly one thing: whether
+tracking is on.
+
+- **The mark** is three bars of rising height -- the three clocks -- drawn at
+  64px and downscaled by the shell. No glyph, no letterform, nothing that needs
+  to survive antialiasing at 16px.
+- **State is carried by ink, not by badge.** Active is `--text-primary` charcoal;
+  paused is muted stone, the same value used for secondary text. A paused
+  tracker should look dimmed, not alarmed.
+- **The tooltip states the state in words** ("Cadence - tracking" /
+  "Cadence - paused"), because a color difference alone is not readable to
+  everyone.
+- **Double-click opens the dashboard.** The most common intent should not
+  require reading a menu.
+
+## 7. Information Hierarchy
 
 The report is ordered by how a person actually asks about their day.
 
@@ -111,7 +128,7 @@ The report is ordered by how a person actually asks about their day.
 Absence of data is rendered as absence, not as zero. A section with nothing to
 report is omitted rather than shown empty.
 
-## 7. Tone of Reported Numbers
+## 8. Tone of Reported Numbers
 
 - **Report, never scold.** No red, no warnings, no streak-breaking language, no
   goals the user did not set. The distraction category is styled as calmly as
@@ -127,7 +144,7 @@ report is omitted rather than shown empty.
   focus is a heuristic and not a measure of worth. A number this easy to
   over-read must carry its own disclaimer on the page, not only in the docs.
 
-## 8. Extension Options Screen Pattern
+## 9. Extension Options Screen Pattern
 
 The one browser-facing surface follows the same restraint.
 
