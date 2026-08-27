@@ -13,9 +13,10 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from fastapi import HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
+from fastapi.staticfiles import StaticFiles
 
-from . import categories, config, db, ingest, sessionizer, summary
+from . import categories, config, db, icons, ingest, sessionizer, summary
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -144,8 +145,45 @@ def build_app(token: str):
         payload["is_today"] = parsed == date.today()
         return payload
 
+    @app.get("/api/icon")
+    def app_icon(app: str):
+        """The real icon for an application, extracted from its executable."""
+        conn = db.read_connection()
+        try:
+            path = icons.icon_path(conn, app)
+        finally:
+            conn.close()
+
+        if path is None:
+            # Not an error worth logging -- some binaries simply have no icon,
+            # and the page falls back to a category dot.
+            return Response(status_code=204)
+
+        return FileResponse(path, media_type="image/png", headers={"Cache-Control": "max-age=86400"})
+
     @app.get("/")
     def dashboard():
         return FileResponse(STATIC_DIR / "index.html")
 
+    # The manifest and the worker must be served from the root, not from
+    # /static, or the service worker's scope will not cover the dashboard.
+    @app.get("/manifest.webmanifest")
+    def manifest():
+        return FileResponse(
+            STATIC_DIR / "manifest.webmanifest", media_type="application/manifest+json"
+        )
+
+    @app.get("/sw.js")
+    def service_worker():
+        return FileResponse(
+            STATIC_DIR / "sw.js",
+            media_type="application/javascript",
+            headers={"Cache-Control": "no-cache"},
+        )
+
+    @app.get("/favicon.ico")
+    def favicon():
+        return FileResponse(STATIC_DIR / "icons/icon.ico", media_type="image/x-icon")
+
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     return app

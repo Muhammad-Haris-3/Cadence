@@ -216,7 +216,28 @@ Navigation is by `?day=YYYY-MM-DD`, with arrow keys bound to the adjacent days
 and forward navigation disabled on today. While today is displayed the page
 refetches every `DASHBOARD_POLL_SECONDS`; historical days do not poll.
 
-## 11. Daily Summary
+## 11. Application Icons and Installability
+
+**Icons** are extracted from the executables themselves via `ExtractIconEx`,
+rather than matched against an icon pack. Windows already knows which icon
+belongs to `Code.exe`; a pack can only guess, and covers nothing obscure. Results
+are cached as PNG under `~/.cadence/icons/`, and misses are remembered in memory
+-- a few system binaries carry no extractable icon, and retrying them on every
+page load would be waste. `GET /api/icon?app=` returns the PNG, or `204` so the
+page falls back to a category dot. Every GDI handle is released in a `finally`.
+
+**Installability.** `127.0.0.1` is a secure context, so the dashboard qualifies
+as an installable web app with no certificate and no hosting. A manifest and a
+minimal service worker are served from the root (not `/static`, or the worker's
+scope would not cover the page). Chrome then offers *Install app*, giving the
+dashboard its own window, its own icon, and a taskbar entry.
+
+The service worker is network-first and explicitly skips `/api/`: a cached
+dashboard showing yesterday's numbers would be worse than a blank one. Its only
+real job is making the app window open to a shell rather than a connection error
+when the daemon happens to be stopped.
+
+## 12. Daily Summary
 
 A written summary of a day, reachable two ways. Both consume the same input:
 `digest.build()`, which renders the day as compact plain text -- roughly 400
@@ -241,14 +262,14 @@ Summaries are stored in `summaries` (one row per day). Unlike `sessions`, they
 are **not derived**: they cannot be regenerated identically and regenerating may
 cost money, so nothing drops them automatically.
 
-## 12. Migration Strategy
+## 13. Migration Strategy
 
 `db.migrate()` runs on every connect and applies additive migrations only --
 `ALTER TABLE ... ADD COLUMN` guarded by a `PRAGMA table_info` check. Because
 sessions and categories are derived, no data migration is required when their
 rules change; the affected days are simply recomputed.
 
-## 13. Privacy Boundary Implemented in Code
+## 14. Privacy Boundary Implemented in Code
 
 - `win_probe.py` reads window metadata and the *timestamp* of the last input.
   There is no keyboard hook, and keystroke content is not obtainable from the

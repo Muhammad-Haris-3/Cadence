@@ -1,10 +1,12 @@
 # UI/UX Design System & Aesthetic Guidelines
 
 **Project Name:** cadence
-**Aesthetic Direction:** Editorial / Zen Minimalism (continuous with core-tracker)
-**Core Philosophy:** The report should read like a page from a notebook, not like
-a dashboard. A tracker that quantifies your day must not also shout at you about
-it. Restraint is the point: the numbers are uncomfortable enough on their own.
+**Aesthetic Direction:** Two philosophies, switchable at runtime
+**Core Philosophy:** A tracker that quantifies your day must not also shout at
+you about it. That conviction produced **Editorial**, the default. But restraint
+is a preference, not a truth, and some days you want the instrument panel rather
+than the notebook -- so **Studio** sits beside it, one click away, and the choice
+is remembered.
 
 ## 1. Surfaces
 
@@ -13,7 +15,9 @@ Cadence has two presentation surfaces, and they share one voice.
 - **The terminal report** (`report.py`) is the MVP surface and remains the
   fastest path to the data. It must stay readable in a plain console with no
   color support.
-- **The local dashboard**, served by the daemon at `127.0.0.1:8765`, inherits
+- **The local dashboard**, served by the daemon at `127.0.0.1:8765`, offers both
+  philosophies and both light and dark. It is installable as a desktop app, so it
+  can live in the taskbar with its own window and icon. It inherits
   the core-tracker design system wholesale -- palette, typography, spatial
   rhythm -- so the two projects feel like one body of work. It is a single
   static page rather than a Next.js application: the design system is CSS
@@ -21,9 +25,44 @@ Cadence has two presentation surfaces, and they share one voice.
   runs continuously should not need a second process started before its own data
   can be read.
 
-## 2. Color Palette (CSS Variables)
+## 2. The Two Philosophies
 
-Carried over unchanged from core-tracker, avoiding pure black and pure white.
+| | Editorial (default) | Studio |
+| --- | --- | --- |
+| Canvas | warm off-white / warm charcoal | cool slate / near-black navy |
+| Structure | rules and negative space | cards with radius and shadow |
+| Type | Caveat display, IBM Plex Mono body | Inter throughout, mono for figures |
+| Headings | small, uppercase, tracked | larger, sentence case, semibold |
+| Category color | muted, restrained | saturated, confident |
+| App icons | hidden -- the dot suffices | real icons, extracted from the executables |
+| Feels like | a notebook page | an instrument panel |
+
+**They share one stylesheet, one set of rules, and identical markup.** Every
+structural difference is expressed as a variable rather than as a rule:
+
+```
+section { background: var(--surface); border-radius: var(--radius);
+          box-shadow: var(--shadow); padding: var(--card-pad); }
+```
+
+Editorial sets `--surface: transparent`, `--radius: 0`, `--shadow: none`,
+`--card-pad: 0`, and the card vanishes into flat editorial layout. Studio gives
+them real values and the same element becomes a card. Nothing is duplicated and
+nothing is conditionally rendered.
+
+This is the rule for any future work here: **if a philosophy needs a new
+structural difference, add a token, not a branch.** The moment there are two
+code paths, they drift.
+
+State lives on the root element as `data-philosophy` and `data-mode`, is
+persisted to `localStorage` behind try/catch, and defaults the mode from
+`prefers-color-scheme` on a first visit.
+
+## 3. Color Palette (CSS Variables)
+
+Editorial carries the core-tracker palette over unchanged, avoiding pure black
+and pure white. Studio uses a cooler slate family and permits pure white as a
+card surface, since a card needs to lift off its canvas.
 
 - `--bg-primary`: `#F5F5F4` (Warm Off-White / Stone 50) - the main canvas.
 - `--text-primary`: `#1C1917` (Soft Charcoal / Stone 900) - readable without optical strain.
@@ -39,7 +78,7 @@ in the system and they appear exclusively in data visualization, never in chrome
 - `--cat-distraction`: dusty rose, never alarm red - the tool reports, it does not scold.
 - `--cat-idle`: `--text-secondary` - absence is absence, not a category.
 
-## 3. Typography System
+## 4. Typography System
 
 The dual-font strategy from core-tracker, with the balance shifted toward the
 functional face because Cadence is denser with figures.
@@ -52,7 +91,7 @@ functional face because Cadence is denser with figures.
   - **Purpose:** tabular figures must align vertically. Proportional fonts are
     disqualified for any column of numbers.
 
-## 4. Terminal Report Conventions
+## 5. Terminal Report Conventions
 
 The terminal surface has its own constraints and they are binding.
 
@@ -70,7 +109,7 @@ The terminal surface has its own constraints and they are binding.
   script while the Windows console defaults to cp1252; one exotic tab title must
   never be able to kill the report.
 
-## 5. Dashboard Conventions
+## 6. Dashboard Conventions
 
 The dashboard obeys the terminal report's hierarchy and adds the affordances a
 screen allows.
@@ -80,7 +119,12 @@ screen allows.
   shape of the day is legible before a single number is read. Gaps are left
   empty rather than filled with grey -- absence is shown by absence.
 - **Category color appears only in data.** Dots, band blocks, and meter fills
-  carry it; headings, borders, and body text never do.
+  carry it; headings, borders, and body text never do. This holds in both
+  philosophies -- Studio raises the saturation, not the surface area.
+- **Application icons are the real ones**, extracted from each executable rather
+  than matched from an icon pack, so an obscure tool is identified as accurately
+  as a famous one. A binary with no extractable icon falls back to the category
+  dot rather than to a generic placeholder.
 - **Meters over bars.** A 4px rule with a colored fill, not a chart. The number
   sits beside it in muted text, because the figure is the fact and the meter is
   only the shape of it.
@@ -97,7 +141,7 @@ screen allows.
 - **Keyboard first.** Left and right arrows move between days; forward is
   disabled on today rather than hidden, so the boundary is visible.
 
-## 6. Tray Icon
+## 7. Tray Icon
 
 The only surface visible while you work, so it says exactly one thing: whether
 tracking is on.
@@ -114,7 +158,7 @@ tracking is on.
 - **Double-click opens the dashboard.** The most common intent should not
   require reading a menu.
 
-## 7. The Written Summary
+## 8. The Written Summary
 
 Prose among figures, so it is set apart by measure and rule rather than by a box.
 
@@ -131,7 +175,7 @@ Prose among figures, so it is set apart by measure and rule rather than by a box
 - **It sits above the data**, because it is the interpretation the rest of the
   page supports, and it is omitted entirely when absent.
 
-## 8. Information Hierarchy
+## 9. Information Hierarchy
 
 The report is ordered by how a person actually asks about their day.
 
@@ -145,7 +189,7 @@ The report is ordered by how a person actually asks about their day.
 Absence of data is rendered as absence, not as zero. A section with nothing to
 report is omitted rather than shown empty.
 
-## 9. Tone of Reported Numbers
+## 10. Tone of Reported Numbers
 
 - **Report, never scold.** No red, no warnings, no streak-breaking language, no
   goals the user did not set. The distraction category is styled as calmly as
@@ -161,7 +205,7 @@ report is omitted rather than shown empty.
   focus is a heuristic and not a measure of worth. A number this easy to
   over-read must carry its own disclaimer on the page, not only in the docs.
 
-## 10. Extension Options Screen Pattern
+## 11. Extension Options Screen Pattern
 
 The one browser-facing surface follows the same restraint.
 

@@ -1,18 +1,66 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-philosophy="editorial">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Cadence</title>
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
+<meta name="theme-color" content="#4C4FA8" />
+<meta name="application-name" content="Cadence" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <style>
-  :root {
-    --bg-primary:     #F5F5F4;
-    --text-primary:   #1C1917;
-    --text-secondary: #78716C;
-    --border-subtle:  #E7E5E4;
+  /* ------------------------------------------------------------------------
+     Two design philosophies, one stylesheet.
+
+     Every structural difference between them is a variable, not a rule: a card
+     is --surface + --radius + --shadow + --card-pad, and Editorial simply sets
+     those to transparent / 0 / none / 0. So the markup and the CSS below are
+     identical in both, and switching is one attribute on <html>.
+
+       data-philosophy  editorial | studio
+       data-mode        light     | dark
+     ------------------------------------------------------------------------ */
+
+  :root,
+  [data-philosophy="editorial"] {
+    --bg:            #F5F5F4;
+    --text:          #1C1917;
+    --text-2:        #78716C;
+    --border:        #E7E5E4;
+
+    --surface:       transparent;
+    --radius:        0;
+    --shadow:        none;
+    --card-pad:      0;
+    --card-border:   none;
+    --card-gap:      3.5rem;
+    --icon-display:  none;
+    --meter-height:  4px;
+    --band-height:   42px;
+    --band-radius:   2px;
+
+    --display:       "Caveat", ui-serif, Georgia, serif;
+    --body:          "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --mono:          "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --body-size:     14px;
+
+    --h1-family:     var(--display);
+    --h1-size:       2.75rem;
+    --h1-weight:     600;
+    --h1-spacing:    0;
+
+    --h2-size:       .75rem;
+    --h2-weight:     500;
+    --h2-spacing:    .14em;
+    --h2-transform:  uppercase;
+
+    --lede-family:   var(--display);
+    --lede-size:     1.6rem;
+    --lede-weight:   400;
 
     --cat-code:        #4C4FA8;
     --cat-learning:    #2F8F87;
@@ -25,9 +73,95 @@
     --cat-other:       #A8A29E;
     --cat-idle:        #D6D3D1;
     --cat-away:        #D6D3D1;
+  }
 
-    --display: "Caveat", ui-serif, Georgia, serif;
-    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  [data-philosophy="editorial"][data-mode="dark"] {
+    --bg:      #1C1917;
+    --text:    #F5F5F4;
+    --text-2:  #A8A29E;
+    --border:  #292524;
+
+    --cat-code:        #8C8FE0;
+    --cat-learning:    #5FC7BD;
+    --cat-docs:        #8AB6E0;
+    --cat-design:      #C093DC;
+    --cat-ai:          #A99BDC;
+    --cat-comms:       #E0B972;
+    --cat-distraction: #E098AC;
+    --cat-browsing:    #A8B4BF;
+    --cat-other:       #78716C;
+    --cat-idle:        #44403C;
+    --cat-away:        #44403C;
+  }
+
+  [data-philosophy="studio"] {
+    --bg:            #EEF2F7;
+    --text:          #0F172A;
+    --text-2:        #64748B;
+    --border:        #E2E8F0;
+
+    --surface:       #FFFFFF;
+    --radius:        14px;
+    --shadow:        0 1px 2px rgba(15, 23, 42, .05), 0 10px 30px -18px rgba(15, 23, 42, .35);
+    --card-pad:      1.6rem 1.7rem;
+    --card-border:   1px solid var(--border);
+    --card-gap:      1.5rem;
+    --icon-display:  block;
+    --meter-height:  7px;
+    --band-height:   54px;
+    --band-radius:   6px;
+
+    --display:       "Inter", system-ui, sans-serif;
+    --body:          "Inter", system-ui, sans-serif;
+    --mono:          "IBM Plex Mono", ui-monospace, monospace;
+    --body-size:     14px;
+
+    --h1-family:     var(--display);
+    --h1-size:       1.7rem;
+    --h1-weight:     700;
+    --h1-spacing:    -.02em;
+
+    --h2-size:       .95rem;
+    --h2-weight:     600;
+    --h2-spacing:    0;
+    --h2-transform:  none;
+
+    --lede-family:   var(--display);
+    --lede-size:     1.05rem;
+    --lede-weight:   500;
+
+    --cat-code:        #4F46E5;
+    --cat-learning:    #0D9488;
+    --cat-docs:        #0284C7;
+    --cat-design:      #9333EA;
+    --cat-ai:          #7C3AED;
+    --cat-comms:       #D97706;
+    --cat-distraction: #E11D48;
+    --cat-browsing:    #475569;
+    --cat-other:       #94A3B8;
+    --cat-idle:        #CBD5E1;
+    --cat-away:        #CBD5E1;
+  }
+
+  [data-philosophy="studio"][data-mode="dark"] {
+    --bg:       #0B1120;
+    --text:     #E2E8F0;
+    --text-2:   #94A3B8;
+    --border:   #1E293B;
+    --surface:  #131C31;
+    --shadow:   0 1px 2px rgba(0, 0, 0, .5), 0 10px 30px -18px rgba(0, 0, 0, .8);
+
+    --cat-code:        #818CF8;
+    --cat-learning:    #2DD4BF;
+    --cat-docs:        #38BDF8;
+    --cat-design:      #C084FC;
+    --cat-ai:          #A78BFA;
+    --cat-comms:       #FBBF24;
+    --cat-distraction: #FB7185;
+    --cat-browsing:    #94A3B8;
+    --cat-other:       #64748B;
+    --cat-idle:        #1E293B;
+    --cat-away:        #1E293B;
   }
 
   * { box-sizing: border-box; }
@@ -35,129 +169,199 @@
   body {
     margin: 0;
     padding: 4rem 1.5rem 6rem;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-family: var(--mono);
-    font-size: 14px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    font-size: var(--body-size);
     line-height: 1.6;
     font-variant-numeric: tabular-nums;
+    transition: background-color .25s ease, color .25s ease;
   }
 
   main { max-width: 1080px; margin: 0 auto; }
 
-  header { display: flex; align-items: baseline; justify-content: space-between; gap: 2rem; flex-wrap: wrap; }
+  /* -- header ------------------------------------------------------------ */
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: .75rem;
+  }
 
   h1 {
-    font-family: var(--display);
-    font-size: 2.75rem;
-    font-weight: 600;
+    font-family: var(--h1-family);
+    font-size: var(--h1-size);
+    font-weight: var(--h1-weight);
+    letter-spacing: var(--h1-spacing);
     margin: 0;
-    line-height: 1;
+    line-height: 1.1;
   }
 
-  nav { display: flex; align-items: center; gap: 1rem; }
+  .controls { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
 
-  nav button {
+  nav { display: flex; align-items: center; gap: .75rem; }
+
+  nav button, .icon-button {
     font: inherit;
-    font-size: 1rem;
+    font-family: var(--body);
     background: none;
     border: none;
-    color: var(--text-secondary);
+    color: var(--text-2);
     cursor: pointer;
-    padding: .2rem .5rem;
-    border-radius: 4px;
+    padding: .3rem .55rem;
+    border-radius: 6px;
+    line-height: 1;
   }
-  nav button:hover:not(:disabled) { color: var(--text-primary); background: var(--border-subtle); }
+  nav button:hover:not(:disabled), .icon-button:hover { color: var(--text); background: var(--border); }
   nav button:disabled { opacity: .25; cursor: default; }
 
-  #day-label { min-width: 11ch; text-align: center; font-weight: 500; }
+  #day-label { min-width: 11ch; text-align: center; font-weight: 500; color: var(--text); }
 
-  .summary {
-    font-family: var(--display);
-    font-size: 1.6rem;
-    color: var(--text-secondary);
-    margin: .75rem 0 3.5rem;
+  /* The segmented switch borrows --radius, so it is a square block in
+     Editorial and a pill in Studio without a second rule. */
+  .segmented {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) / 2 + 4px);
+    background: var(--surface);
   }
-  .summary strong { color: var(--text-primary); font-weight: 600; }
+  .segmented button {
+    font: inherit;
+    font-family: var(--body);
+    font-size: .78rem;
+    background: none;
+    border: none;
+    color: var(--text-2);
+    cursor: pointer;
+    padding: .3rem .7rem;
+    border-radius: calc(var(--radius) / 2 + 2px);
+  }
+  .segmented button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+  .segmented button:not([aria-pressed="true"]):hover { color: var(--text); }
 
-  section { margin-bottom: 3.5rem; }
+  .icon-button svg { width: 16px; height: 16px; display: block; stroke: currentColor; fill: none;
+                     stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  .lede {
+    font-family: var(--lede-family);
+    font-size: var(--lede-size);
+    font-weight: var(--lede-weight);
+    color: var(--text-2);
+    margin: 0 0 2.5rem;
+  }
+  .lede strong { color: var(--text); font-weight: 600; }
+
+  /* -- cards -------------------------------------------------------------- */
+
+  section, .written {
+    background: var(--surface);
+    border: var(--card-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: var(--card-pad);
+    margin-bottom: var(--card-gap);
+  }
 
   h2 {
-    font-size: .75rem;
-    font-weight: 500;
-    letter-spacing: .14em;
-    text-transform: uppercase;
-    color: var(--text-secondary);
+    font-size: var(--h2-size);
+    font-weight: var(--h2-weight);
+    letter-spacing: var(--h2-spacing);
+    text-transform: var(--h2-transform);
+    color: var(--text-2);
     margin: 0 0 1.25rem;
   }
+  [data-philosophy="studio"] h2 { color: var(--text); }
 
-  .timeline { position: relative; height: 42px; }
+  /* -- timeline ----------------------------------------------------------- */
 
+  .timeline { position: relative; height: var(--band-height); }
   .timeline .block {
     position: absolute;
     top: 0;
-    height: 42px;
-    border-radius: 2px;
+    height: var(--band-height);
+    border-radius: var(--band-radius);
     min-width: 2px;
+    transition: height .25s ease, border-radius .25s ease;
   }
+  [data-philosophy="studio"] .timeline { background: var(--border); border-radius: var(--band-radius); }
 
-  .hours { position: relative; height: 1.4rem; margin-top: .4rem; }
-  .hours span {
-    position: absolute;
-    transform: translateX(-50%);
-    font-size: .7rem;
-    color: var(--text-secondary);
-  }
+  .hours { position: relative; height: 1.4rem; margin-top: .5rem; }
+  .hours span { position: absolute; transform: translateX(-50%); font-size: .7rem; color: var(--text-2); }
+
+  /* -- tables ------------------------------------------------------------- */
 
   table { width: 100%; border-collapse: collapse; }
 
   td, th {
-    padding: .55rem 0;
-    border-bottom: 1px solid var(--border-subtle);
+    padding: .6rem 0;
+    border-bottom: 1px solid var(--border);
     text-align: left;
     font-weight: 400;
+    vertical-align: middle;
   }
   tr:last-child td { border-bottom: none; }
 
   th {
     font-size: .7rem;
-    letter-spacing: .1em;
+    letter-spacing: .08em;
     text-transform: uppercase;
-    color: var(--text-secondary);
+    color: var(--text-2);
     padding-bottom: .5rem;
   }
 
-  .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .muted { color: var(--text-secondary); }
-  .truncate { max-width: 1px; width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .num { text-align: right; font-family: var(--mono); white-space: nowrap; }
+  .muted { color: var(--text-2); }
+  .truncate { max-width: 1px; width: 42%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .dot {
     display: inline-block;
     width: .55rem; height: .55rem;
     border-radius: 50%;
     margin-right: .55rem;
+    flex: none;
   }
 
-  .meter { display: inline-block; width: 110px; height: 4px; background: var(--border-subtle); border-radius: 2px; vertical-align: middle; }
-  .meter > i { display: block; height: 4px; border-radius: 2px; }
-
-  .note { color: var(--text-secondary); font-size: .8rem; }
-
-  .empty {
-    color: var(--text-secondary);
-    font-family: var(--display);
-    font-size: 1.4rem;
-    padding: 2rem 0;
+  /* Real application icons, extracted from the executables. Editorial keeps
+     them hidden -- the category dot is enough there. */
+  .appicon {
+    display: var(--icon-display);
+    width: 18px; height: 18px;
+    border-radius: 4px;
+    margin-right: .6rem;
+    flex: none;
   }
+  .with-icon { display: flex; align-items: center; min-width: 0; }
+  .with-icon > span.label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  /* The written summary reads as a margin note, not as another data block:
-     a rule instead of a box, prose measure instead of full width. */
+  .meter {
+    display: inline-block;
+    width: 110px;
+    height: var(--meter-height);
+    background: var(--border);
+    border-radius: 99px;
+    vertical-align: middle;
+    overflow: hidden;
+  }
+  .meter > i { display: block; height: 100%; border-radius: 99px; transition: width .3s ease; }
+
+  .note { color: var(--text-2); font-size: .8rem; }
+
+  .empty { color: var(--text-2); font-family: var(--lede-family); font-size: 1.2rem; padding: 1.5rem 0; }
+
+  /* -- written summary ----------------------------------------------------- */
+
   .written {
-    border-left: 2px solid var(--border-subtle);
-    padding-left: 1.5rem;
-    margin: 0 0 3.5rem;
     max-width: 62ch;
     line-height: 1.9;
+  }
+  [data-philosophy="editorial"] .written {
+    border-left: 2px solid var(--border);
+    padding-left: 1.5rem;
   }
   .written .attrib {
     display: block;
@@ -165,24 +369,31 @@
     font-size: .7rem;
     letter-spacing: .1em;
     text-transform: uppercase;
-    color: var(--text-secondary);
+    color: var(--text-2);
   }
 
-  footer { color: var(--text-secondary); font-size: .75rem; margin-top: 4rem; line-height: 1.8; }
+  footer { color: var(--text-2); font-size: .75rem; margin-top: 3rem; line-height: 1.8; }
 </style>
 </head>
 <body>
 <main>
   <header>
     <h1>Cadence</h1>
-    <nav>
-      <button id="prev" title="Previous day">&larr;</button>
-      <span id="day-label">&nbsp;</span>
-      <button id="next" title="Next day">&rarr;</button>
-    </nav>
+    <div class="controls">
+      <div class="segmented" role="group" aria-label="Design philosophy">
+        <button id="ph-editorial" aria-pressed="true">Editorial</button>
+        <button id="ph-studio" aria-pressed="false">Studio</button>
+      </div>
+      <button class="icon-button" id="mode" title="Light or dark"></button>
+      <nav>
+        <button id="prev" title="Previous day">&larr;</button>
+        <span id="day-label">&nbsp;</span>
+        <button id="next" title="Next day">&rarr;</button>
+      </nav>
+    </div>
   </header>
 
-  <p class="summary" id="summary">&nbsp;</p>
+  <p class="lede" id="lede">&nbsp;</p>
   <div id="content"></div>
 
   <footer>
@@ -195,11 +406,50 @@
 const POLL_MS = 20000;
 const KNOWN = ["code", "learning", "docs", "design", "ai", "comms", "distraction", "browsing", "other", "idle", "away"];
 
+const SUN = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+const MOON = '<svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+
 let currentDay = new URLSearchParams(location.search).get("day");
 let timer = null;
 
 const el = (id) => document.getElementById(id);
 const color = (c) => "var(--cat-" + (KNOWN.includes(c) ? c : "other") + ")";
+
+/* -- theme ----------------------------------------------------------------- */
+
+function store(key, value) {
+  try { localStorage.setItem(key, value); } catch (e) { /* private mode */ }
+}
+
+function restore(key, fallback) {
+  try { return localStorage.getItem(key) || fallback; } catch (e) { return fallback; }
+}
+
+function applyPhilosophy(name) {
+  document.documentElement.setAttribute("data-philosophy", name);
+  el("ph-editorial").setAttribute("aria-pressed", String(name === "editorial"));
+  el("ph-studio").setAttribute("aria-pressed", String(name === "studio"));
+  store("cadence-philosophy", name);
+}
+
+function applyMode(mode) {
+  document.documentElement.setAttribute("data-mode", mode);
+  el("mode").innerHTML = mode === "dark" ? SUN : MOON;
+  el("mode").title = mode === "dark" ? "Switch to light" : "Switch to dark";
+  store("cadence-mode", mode);
+}
+
+const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+applyPhilosophy(restore("cadence-philosophy", "editorial"));
+applyMode(restore("cadence-mode", prefersDark ? "dark" : "light"));
+
+el("ph-editorial").addEventListener("click", () => applyPhilosophy("editorial"));
+el("ph-studio").addEventListener("click", () => applyPhilosophy("studio"));
+el("mode").addEventListener("click", () => {
+  applyMode(document.documentElement.getAttribute("data-mode") === "dark" ? "light" : "dark");
+});
+
+/* -- helpers --------------------------------------------------------------- */
 
 function fmt(seconds) {
   const total = Math.round(seconds || 0);
@@ -219,17 +469,24 @@ function esc(text) {
   return d.innerHTML;
 }
 
+function appIcon(app) {
+  if (!app || app.startsWith("__")) return "";
+  return '<img class="appicon" src="/api/icon?app=' + encodeURIComponent(app) +
+    '" alt="" onerror="this.remove()" />';
+}
+
 function longDate(day) {
   const parts = day.split("-").map(Number);
   return new Date(parts[0], parts[1] - 1, parts[2])
     .toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+/* -- sections -------------------------------------------------------------- */
+
 function written(text, source) {
   if (!text) return "";
   const attrib = source === "api" ? "Written by Claude" : "Written by hand";
-  return '<div class="written">' + esc(text) +
-    '<span class="attrib">' + attrib + "</span></div>";
+  return '<div class="written">' + esc(text) + '<span class="attrib">' + attrib + "</span></div>";
 }
 
 function timeline(sessions) {
@@ -267,7 +524,8 @@ function sessionTable(sessions) {
         Math.min(s.focus_score, 100) + "%;background:" + color(s.category) +
         '"></i></span><span class="muted" style="margin-left:.6rem">' + Math.round(s.focus_score) + "</span></td>" +
       '<td><span class="dot" style="background:' + color(s.category) + '"></span>' + esc(s.category) + "</td>" +
-      '<td class="truncate">' + esc(s.top_title || s.top_app) + " " + interruptions + "</td>" +
+      '<td class="truncate"><span class="with-icon">' + appIcon(s.top_app) +
+        '<span class="label">' + esc(s.top_title || s.top_app) + " " + interruptions + "</span></span></td>" +
       "</tr>";
   }).join("");
 
@@ -299,12 +557,14 @@ function categoryTable(categories) {
     rows + "</table></section>";
 }
 
-function listTable(title, items, label) {
+function listTable(title, items, label, icon) {
   if (!items.length) return "";
 
   const rows = items.map(function (i) {
+    const art = icon ? appIcon(i.app) : "";
     return "<tr>" +
-      '<td class="truncate">' + esc(label(i)) + "</td>" +
+      '<td class="truncate"><span class="with-icon">' + art +
+        '<span class="label">' + esc(label(i)) + "</span></span></td>" +
       '<td class="num">' + fmt(i.duration_sec) + "</td>" +
       '<td class="num muted">' + pct(i.input_sec, i.duration_sec) + "%</td>" +
       "</tr>";
@@ -315,13 +575,15 @@ function listTable(title, items, label) {
     rows + "</table></section>";
 }
 
+/* -- render ---------------------------------------------------------------- */
+
 function render(data) {
   currentDay = data.day;
   el("day-label").textContent = data.is_today ? "Today" : longDate(data.day);
   el("next").disabled = data.is_today;
 
   const s = data.summary;
-  el("summary").innerHTML = s.sessions
+  el("lede").innerHTML = s.sessions
     ? "<strong>" + s.sessions + "</strong> session" + (s.sessions > 1 ? "s" : "") +
       " &middot; <strong>" + fmt(s.blocks_sec) + "</strong> in blocks" +
       " &middot; longest <strong>" + fmt(s.longest_sec) + "</strong>"
@@ -332,8 +594,8 @@ function render(data) {
     timeline(data.sessions) +
     sessionTable(data.sessions) +
     categoryTable(data.categories) +
-    listTable("Top windows", data.windows, function (w) { return w.title || w.app; }) +
-    listTable("Top sites", data.sites, function (x) { return x.host; });
+    listTable("Top windows", data.windows, function (w) { return w.title || w.app; }, true) +
+    listTable("Top sites", data.sites, function (x) { return x.host; }, false);
 
   history.replaceState(null, "", "?day=" + data.day);
 
@@ -350,7 +612,7 @@ async function load(day) {
     }
     render(await (await fetch("/api/day/" + target)).json());
   } catch (err) {
-    el("summary").textContent = "Can't reach the tracker. Is the daemon running?";
+    el("lede").textContent = "Can't reach the tracker. Is the daemon running?";
   }
 }
 
@@ -366,11 +628,20 @@ function shift(days) {
 el("prev").addEventListener("click", function () { shift(-1); });
 el("next").addEventListener("click", function () { shift(1); });
 document.addEventListener("keydown", function (e) {
+  if (e.target.tagName === "BUTTON") return;
   if (e.key === "ArrowLeft") shift(-1);
   if (e.key === "ArrowRight" && !el("next").disabled) shift(1);
 });
 
 load(currentDay);
+
+// Registered so Chrome offers "Install app", which is what makes the dashboard
+// pinnable to the taskbar with its own window and icon.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("/sw.js").catch(function () { /* not fatal */ });
+  });
+}
 </script>
 </body>
 </html>
