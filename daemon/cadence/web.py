@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import (appnames, categories, config, db, dayreport, icons, ingest,
-               sessionizer, summary)
+               sessionizer, summary, weekreport)
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -198,6 +198,107 @@ def day_payload(conn, day: str) -> dict:
     }
 
 
+def week_bounds(day: str):
+    """The Monday and Sunday of the week containing `day`.
+
+    Calendar weeks rather than a trailing seven days, because the report is made
+    to be handed to someone: "24 to 30 August" is a span two people can agree on
+    without having to know which day it was exported.
+    """
+    anchor = datetime.strptime(day, "%Y-%m-%d").date()
+    start = anchor - timedelta(days=anchor.weekday())
+    return start, start + timedelta(days=6)
+
+
+def _accumulate(days: list, section: str, key_of, keep) -> list:
+    """Sum one of the day rollups across the week, largest first."""
+    totals = {}
+    for day in days:
+        for row in day[section]:
+            key = key_of(row)
+            running = totals.get(key)
+            if running is None:
+                totals[key] = running = keep(row)
+                running["duration_sec"] = 0.0
+                running["input_sec"] = 0.0
+            running["duration_sec"] += row.get("duration_sec") or 0
+            running["input_sec"] += row.get("input_sec") or 0
+    return sorted(totals.values(), key=lambda row: row["duration_sec"], reverse=True)
+
+
+def _top_category(day: dict):
+    """What a day was mostly, ignoring the time it was not being used."""
+    real = [
+        row for row in day["categories"]
+        if row["category"] not in ("idle", "away") and row["duration_sec"]
+    ]
+    return max(real, key=lambda row: row["duration_sec"])["category"] if real else None
+
+
+def week_payload(conn, day: str) -> dict:
+    """A week as the report needs it: each day whole, plus the week's own totals.
+
+    Built by asking for each day exactly as the dashboard would, so a week can
+    never disagree with the days inside it. A week still running stops at today
+    rather than padding out to Sunday -- empty bars for days that have not
+    happened read as absence rather than as the future.
+    """
+    start, end = week_bounds(day)
+    today = date.today()
+    through = end if end < today else max(today, start)
+
+    days = []
+    cursor = start
+    while cursor <= through:
+        stamp = cursor.strftime("%Y-%m-%d")
+        payload = day_payload(conn, stamp)
+        payload["top_category"] = _top_category(payload)
+        days.append(payload)
+        cursor += timedelta(days=1)
+
+    tracked = [d for d in days if d["summary"]["tracked_sec"]]
+    busiest = max(tracked, key=lambda d: d["summary"]["tracked_sec"], default=None)
+
+    def total(field):
+        return sum(d["summary"][field] for d in days)
+
+    return {
+        "start": start.strftime("%Y-%m-%d"),
+        "end": end.strftime("%Y-%m-%d"),
+        "through": through.strftime("%Y-%m-%d"),
+        "partial": through < end,
+        "days": days,
+        "busiest": {
+            "day": busiest["day"] if busiest else None,
+            "name": datetime.strptime(busiest["day"], "%Y-%m-%d").strftime("%A")
+                    if busiest else "",
+            "tracked_sec": busiest["summary"]["tracked_sec"] if busiest else 0,
+        },
+        "summary": {
+            "tracked_days": len(tracked),
+            "sessions": total("sessions"),
+            "blocks_sec": total("blocks_sec"),
+            "tracked_sec": total("tracked_sec"),
+            "active_sec": total("active_sec"),
+            "input_sec": total("input_sec"),
+            "longest_sec": max((d["summary"]["longest_sec"] for d in days), default=0),
+        },
+        "categories": _accumulate(
+            days, "categories", lambda row: row["category"],
+            lambda row: {"category": row["category"]},
+        ),
+        "apps": _accumulate(
+            days, "apps", lambda row: row["app"],
+            lambda row: {"app": row["app"], "name": row.get("name"),
+                         "category": row.get("category")},
+        ),
+        "sites": _accumulate(
+            days, "sites", lambda row: row["host"],
+            lambda row: {"host": row["host"]},
+        ),
+    }
+
+
 def build_app(token: str):
     """The ingest app, extended with the dashboard."""
     app = ingest.build_app(token)
@@ -258,6 +359,39 @@ def build_app(token: str):
             media_type="application/pdf",
             headers={
                 "Content-Disposition": f'attachment; filename="cadence-{day}.pdf"',
+                "Content-Length": str(len(content)),
+            },
+        )
+
+    @app.get("/api/week/{day}/pdf")
+    def week_pdf(day: str):
+        """The calendar week containing `day`, as one file.
+
+        Seven days is seven day_payload calls, each of which may have to build a
+        historical day's sessions the first time it is asked for. That is still
+        well under a second on a real database, and doing it here keeps a week
+        and the days inside it from ever disagreeing.
+        """
+        try:
+            datetime.strptime(day, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="day must be YYYY-MM-DD")
+
+        conn = db.read_connection()
+        try:
+            payload = week_payload(conn, day)
+        finally:
+            conn.close()
+
+        content = weekreport.render(
+            payload, created=datetime.now().strftime("%Y%m%d%H%M%S")
+        )
+        name = f"cadence-week-{payload['start']}.pdf"
+        return Response(
+            content=content,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{name}"',
                 "Content-Length": str(len(content)),
             },
         )

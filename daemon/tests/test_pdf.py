@@ -25,7 +25,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ["CADENCE_DATA_DIR"] = tempfile.mkdtemp(prefix="cadence-test-")
 
-from cadence import dayreport, pdf  # noqa: E402
+from cadence import dayreport, pdf, sheet, web, weekreport  # noqa: E402
 
 
 def check(label, got, want):
@@ -179,6 +179,85 @@ def payload(sessions=3, written=None) -> dict:
     }
 
 
+# Where one rollup's percentages stop and the next section starts.
+SECTION_STARTS = ("APPLICATION", "SITE", "CATEGORY", "DAY", "Idle and", "Showing the")
+
+
+def column_pcts(runs: list, header: str) -> list:
+    """Just the percentages belonging to the table introduced by `header`."""
+    found = []
+    for run in runs[runs.index(header) + 1:]:
+        if any(run.startswith(start) for start in SECTION_STARTS):
+            break
+        if re.fullmatch(r"\d+%", run):
+            found.append(int(run[:-1]))
+    return found
+
+
+def week_payload(active=None, through="2026-08-30") -> dict:
+    """A calendar week with three busy days in it, built the way web.py builds
+    one -- through the same accumulator, so the test cannot agree with itself
+    about how a week is summed while production disagrees."""
+    if active is None:
+        active = ["2026-08-27", "2026-08-28", "2026-08-29"]
+
+    days = []
+    for offset in range(7):
+        stamp = f"2026-08-{24 + offset:02d}"
+        if stamp > through:
+            break
+        if stamp in active:
+            day = payload(sessions=3)
+            day["top_category"] = "code"
+        else:
+            day = payload(sessions=0)
+            day["categories"] = day["apps"] = day["sites"] = []
+            day["top_category"] = None
+        day["day"] = stamp
+        days.append(day)
+
+    tracked = [day for day in days if day["summary"]["tracked_sec"]]
+    busiest = max(tracked, key=lambda d: d["summary"]["tracked_sec"], default=None)
+
+    def total(field):
+        return sum(day["summary"][field] for day in days)
+
+    return {
+        "start": "2026-08-24",
+        "end": "2026-08-30",
+        "through": through,
+        "partial": through < "2026-08-30",
+        "days": days,
+        "busiest": {
+            "day": busiest["day"] if busiest else None,
+            "name": "Thursday" if busiest else "",
+            "tracked_sec": busiest["summary"]["tracked_sec"] if busiest else 0,
+        },
+        "summary": {
+            "tracked_days": len(tracked),
+            "sessions": total("sessions"),
+            "blocks_sec": total("blocks_sec"),
+            "tracked_sec": total("tracked_sec"),
+            "active_sec": total("active_sec"),
+            "input_sec": total("input_sec"),
+            "longest_sec": max((d["summary"]["longest_sec"] for d in days), default=0),
+        },
+        "categories": web._accumulate(
+            days, "categories", lambda row: row["category"],
+            lambda row: {"category": row["category"]},
+        ),
+        "apps": web._accumulate(
+            days, "apps", lambda row: row["app"],
+            lambda row: {"app": row["app"], "name": row.get("name"),
+                         "category": row.get("category")},
+        ),
+        "sites": web._accumulate(
+            days, "sites", lambda row: row["host"],
+            lambda row: {"host": row["host"]},
+        ),
+    }
+
+
 def main():
     results = []
 
@@ -277,6 +356,104 @@ def main():
                          dayreport.long_date("2026-08-05"), "Wednesday, 5 August 2026"))
     results.append(check("a malformed day is passed through, not crashed on",
                          dayreport.long_date("not-a-day"), "not-a-day"))
+
+    # -- the week ----------------------------------------------------------
+    print()
+    print("which week a day belongs to")
+    results.append(check("a Saturday belongs to the Monday before it",
+                         [str(d) for d in web.week_bounds("2026-08-29")],
+                         ["2026-08-24", "2026-08-30"]))
+    results.append(check("a Monday is its own week start",
+                         str(web.week_bounds("2026-08-24")[0]), "2026-08-24"))
+    results.append(check("a Sunday closes the week it started",
+                         [str(d) for d in web.week_bounds("2026-08-30")],
+                         ["2026-08-24", "2026-08-30"]))
+
+    print()
+    print("naming a span")
+    results.append(check("within one month",
+                         weekreport.span_label("2026-08-24", "2026-08-30"),
+                         "24 - 30 August 2026"))
+    results.append(check("across two months",
+                         weekreport.span_label("2026-08-31", "2026-09-06"),
+                         "31 August - 6 September 2026"))
+    results.append(check("across two years",
+                         weekreport.span_label("2026-12-28", "2027-01-03"),
+                         "28 December 2026 - 3 January 2027"))
+    results.append(check("a week showing only its first day",
+                         weekreport.span_label("2026-08-24", "2026-08-24"),
+                         "Monday, 24 August 2026"))
+
+    print()
+    print("a week on the page")
+    week = weekreport.render(week_payload(), created="20260829100000")
+    results.append(check("nothing structurally wrong", structure(week), []))
+    weekly = text_runs(week)
+    results.append(check_true("every day of the week is labelled",
+                              all(f"{name} {24 + n}" in weekly
+                                  for n, name in enumerate(
+                                      ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]))))
+    results.append(check_true("a day with no data says so",
+                              "nothing tracked" in weekly))
+    results.append(check_true("the busiest day is named in the headline",
+                              any("Busiest day" in run for run in weekly)))
+    results.append(check_true("the rollups are the week's, not a day's",
+                              "SHARE OF CATEGORISED TIME" in weekly))
+
+    off_page = [
+        mark for mark in marks(week)
+        if mark[0] < 0 or mark[1] < 0
+        or mark[0] + mark[2] > pdf.PAGE_WIDTH + 0.5
+        or mark[1] + mark[3] > pdf.PAGE_HEIGHT + 0.5
+    ]
+    results.append(check("every mark is inside the page", off_page, []))
+
+    print()
+    print("shares are shares of what is in the table")
+    # The regression: the denominator used to be the session total while the
+    # rows summed segments, so a week with more idle time than sessions printed
+    # percentages adding up to 164.
+    for label, rendered in (("day", rendered), ("week", week)):
+        runs = text_runs(rendered)
+        every = [int(run[:-1]) for run in runs if re.fullmatch(r"\d+%", run)]
+        results.append(check(f"no {label} share exceeds 100%",
+                             [p for p in every if p > 100], []))
+        share = column_pcts(runs, "SHARE OF CATEGORISED TIME")
+        results.append(check_true(f"{label} categories add up to about 100",
+                                  99 <= sum(share) <= 101))
+
+    print()
+    print("what a table leaves out, it says")
+    many = week_payload()
+    many["apps"] = [
+        {"app": f"app{n}.exe", "name": f"App {n}", "category": "code",
+         "duration_sec": float(100 - n)}
+        for n in range(30)
+    ]
+    trimmed = text_runs(weekreport.render(many))
+    results.append(check_true("a truncated table admits it",
+                              any("largest of 30" in run for run in trimmed)))
+
+    results.append(check("idle and away are separated out, with their total",
+                         sheet.active_categories([
+                             {"category": "code", "duration_sec": 10.0},
+                             {"category": "idle", "duration_sec": 5.0},
+                             {"category": "away", "duration_sec": 2.0},
+                         ]),
+                         ([{"category": "code", "duration_sec": 10.0}], 7.0)))
+
+    print()
+    print("a week that is not a normal week")
+    nothing = week_payload(active=[])
+    blank_week = weekreport.render(nothing)
+    results.append(check("an untracked week still renders", structure(blank_week), []))
+    results.append(check_true("and says so",
+                              any("Nothing tracked this week" in run
+                                  for run in text_runs(blank_week))))
+    running = week_payload(through="2026-08-27")
+    results.append(check_true("a week in progress says how far it goes",
+                              any("still running" in run
+                                  for run in text_runs(weekreport.render(running)))))
 
     print(f"\n{sum(results)}/{len(results)} passed\n")
     return 0 if all(results) else 1
