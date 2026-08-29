@@ -113,14 +113,31 @@ def update_segment(conn, seg_id, duration_sec, active_sec, input_sec, ended_at=N
     )
 
 
-def close_dangling(conn) -> int:
+def close_dangling(conn) -> tuple:
     """Close segments left open by a crash or an unclean shutdown, so their
-    time doesn't silently bleed into the next run."""
-    cur = conn.execute(
-        "UPDATE segments SET ended_at = datetime(started_at, '+' || duration_sec || ' seconds') "
-        "WHERE ended_at IS NULL"
+    time doesn't silently bleed into the next run.
+
+    Returns how many were closed and the latest end it reconstructed. That
+    timestamp is the only evidence a killed run leaves behind: a process that
+    is terminated writes no goodbye, so the next start has to say when the last
+    one stopped. It is `started_at + duration_sec`, and duration is only durable
+    as of the last flush, so the true stop is somewhere between that moment and
+    FLUSH_SECONDS later -- close enough to find in a log, not close enough to
+    quote to the second.
+
+    The 'T' is written by hand because SQLite's own datetime() separates with a
+    space, and every other timestamp in this database comes from isoformat().
+    """
+    reconstructed = (
+        "strftime('%Y-%m-%dT%H:%M:%S', started_at, '+' || duration_sec || ' seconds')"
     )
-    return cur.rowcount
+    latest = conn.execute(
+        f"SELECT max({reconstructed}) FROM segments WHERE ended_at IS NULL"
+    ).fetchone()[0]
+    cur = conn.execute(
+        f"UPDATE segments SET ended_at = {reconstructed} WHERE ended_at IS NULL"
+    )
+    return cur.rowcount, latest
 
 
 def migrate(conn) -> None:

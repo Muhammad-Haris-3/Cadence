@@ -171,9 +171,14 @@ class Tracker:
 
         log = logs.get("tracker")
 
-        closed = db.close_dangling(self.conn)
+        closed, stopped_at = db.close_dangling(self.conn)
         if closed:
-            log.info("closed %d segment(s) left open by a previous run", closed)
+            # A run that is killed cannot log its own death, so this is where
+            # the outage gets recorded: from the wreckage, on the way back up.
+            log.warning(
+                "previous run was killed around %s -- %d segment(s) were still "
+                "open and have been closed there", stopped_at, closed
+            )
         log.info("tracking -> %s", config.DB_PATH)
 
         try:
