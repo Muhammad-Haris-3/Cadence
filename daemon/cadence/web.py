@@ -16,7 +16,8 @@ from fastapi import HTTPException
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import appnames, categories, config, db, icons, ingest, sessionizer, summary
+from . import (appnames, categories, config, db, dayreport, icons, ingest,
+               sessionizer, summary)
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -181,9 +182,12 @@ def day_payload(conn, day: str) -> dict:
         },
         "sessions": listed,
         "categories": rows(
-            "SELECT category, SUM(duration_sec) duration_sec, SUM(active_sec) active_sec, "
+            # COALESCE, because a segment that is still open has no category
+            # yet and would otherwise come back as a second, nameless 'other'.
+            "SELECT COALESCE(category, 'other') category, "
+            "SUM(duration_sec) duration_sec, SUM(active_sec) active_sec, "
             "SUM(input_sec) input_sec FROM segments WHERE day = ? "
-            "GROUP BY category ORDER BY duration_sec DESC"
+            "GROUP BY 1 ORDER BY duration_sec DESC"
         ),
         "apps": _app_rollup(conn, day),
         "sites": rows(
@@ -226,6 +230,37 @@ def build_app(token: str):
         payload["next"] = (parsed + timedelta(days=1)).strftime("%Y-%m-%d")
         payload["is_today"] = parsed == date.today()
         return payload
+
+    @app.get("/api/day/{day}/pdf")
+    def day_pdf(day: str):
+        """The same day the dashboard shows, as something you can send someone.
+
+        Rendered on demand rather than cached: a day report is cheap to build
+        and today's changes every minute, so a stale file on disk would be one
+        more thing that can be wrong.
+        """
+        try:
+            datetime.strptime(day, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="day must be YYYY-MM-DD")
+
+        conn = db.read_connection()
+        try:
+            payload = day_payload(conn, day)
+        finally:
+            conn.close()
+
+        content = dayreport.render(
+            payload, created=datetime.now().strftime("%Y%m%d%H%M%S")
+        )
+        return Response(
+            content=content,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="cadence-{day}.pdf"',
+                "Content-Length": str(len(content)),
+            },
+        )
 
     @app.get("/api/icon")
     def app_icon(app: str):
