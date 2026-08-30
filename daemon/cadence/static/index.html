@@ -743,12 +743,18 @@ async function load(day) {
     render(await (await fetch("/api/day/" + target)).json());
   } catch (err) {
     // The page itself came from the service worker cache, which is why you are
-    // reading this instead of a browser connection error. Say what to do, and
-    // keep trying: when the tracker comes back the page should recover on its
-    // own rather than needing a reload.
+    // reading this instead of a browser connection error.
+    //
+    // The wording is careful. This screen is what you get in the seconds after
+    // logon before the tracker has started, and the version that said only
+    // "can't reach the tracker" read as though the day had been lost -- it was
+    // reported three times as "it lost everything" when nothing had been lost
+    // at all. The database is only ever appended to; a tracker that is not
+    // running records nothing new and destroys nothing old. Say that first.
     el("lede").textContent =
-      "Can't reach the tracker — it isn't running. " +
-      "Start it from the tray, or run:  python autostart.py start";
+      "Waiting for the tracker. Nothing is lost — everything already recorded " +
+      "is safe on this machine, and this page fills in by itself the moment " +
+      "the tracker answers. It starts on its own shortly after you log in.";
     clearTimeout(timer);
     timer = setTimeout(function () { load(day); }, 5000);
   }

@@ -1,33 +1,53 @@
 """Start tracking automatically when Windows starts.
 
-    python autostart.py status             # installed *and* actually running?
-    python autostart.py start              # start it now, without a logon
+    python autostart.py status             # installed, enabled *and* running?
+    python autostart.py start              # start it now
     python autostart.py install            # Task Scheduler (preferred)
-    python autostart.py install startup    # Startup folder (no elevation)
+    python autostart.py install startup    # Startup folder (last resort)
     python autostart.py uninstall          # removes both
 
-`status` reports two separate things, because they failed independently once:
-whether Windows is set to launch Cadence, and whether Cadence is running right
-now. An installed shortcut that dies a second after logon looks identical to no
-shortcut at all from the dashboard, and that is exactly what happened.
+`status` reports three separate things, because they failed independently once:
+whether Windows is set to launch Cadence, whether it is running right now, and
+-- the one that took three rounds of "it lost everything" to find -- *how long
+after logon* it actually started.
 
-Two mechanisms, because they fail in different situations:
+That last number is the whole reason this file prefers Task Scheduler.
 
-**Task Scheduler** is the better one. It can delay past the logon rush, it is
-visible and removable from taskschd.msc, and it survives the interpreter moving.
-But `schtasks /Create` is denied under some machine policies, and denial is not
-predictable in advance.
+The Startup folder looks like it works: the shortcut is there, and Cadence does
+come up after every logon. But the shell runs Startup-folder items whenever it
+gets round to them, behind every other startup app, throttled by Windows' own
+startup-app policy. Measured on a real machine across four consecutive logons,
+that was 5:00, 5:28, 5:39 and 6:27 -- every time, minutes of a dashboard saying
+the tracker isn't running while the tracker is simply not launched yet. There
+is no setting to make that shorter, because the delay is not ours.
 
-**A Startup-folder shortcut** needs no special permission and works everywhere,
-at the cost of firing during the logon rush with no delay control.
+A scheduled task has a trigger with a delay we name, honoured by the Task
+Scheduler service rather than the shell, and it takes a second trigger: a
+repetition that relaunches Cadence if it is ever not running, which turns
+"start it again" into something nobody has to remember.
 
-Both launch the venv's pythonw.exe, so no console window ever appears, and both
-run unelevated -- tracking needs no privileges and should never ask for any.
+Four of its settings matter more than the rest, and all four default the wrong
+way for a laptop:
+
+    DisallowStartIfOnBatteries   true by default -- the task would simply not
+                                 run while unplugged, which is most of the time
+    StopIfGoingOnBatteries       true by default -- unplugging would kill it
+    ExecutionTimeLimit           72 hours by default -- a process meant to run
+                                 for months gets terminated after three days
+    MultipleInstancesPolicy      the repetition must not start a second copy
+
+`schtasks /Create` with plain flags cannot set any of them, which is why the
+task is registered from XML.
+
+Both mechanisms launch the venv's pythonw.exe, so no console window ever
+appears, and both run unelevated -- tracking needs no privileges and should
+never ask for any.
 """
 
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -38,8 +58,15 @@ DAEMON_DIR = Path(__file__).resolve().parent
 PYTHONW = DAEMON_DIR / ".venv" / "Scripts" / "pythonw.exe"
 ENTRY = DAEMON_DIR / "tray_app.pyw"
 
-# Past the logon rush, so tracking never competes with the desktop appearing.
-LOGON_DELAY = "0000:30"
+# Long enough to be behind the logon itself, short enough that opening the
+# dashboard straight after logging in finds a tracker already answering.
+LOGON_DELAY = "PT20S"
+
+# The watchdog. Every tick asks Task Scheduler to run the task; if Cadence is
+# already up the task is still running, MultipleInstancesPolicy says IgnoreNew,
+# and nothing happens. If it died -- a crash, a killed process, a session that
+# ended badly -- this is what brings it back, with nobody watching.
+WATCHDOG_INTERVAL = "PT5M"
 
 
 def startup_dir() -> Path:
@@ -52,6 +79,14 @@ def shortcut_path() -> Path:
 
 def task_command() -> str:
     return f'"{PYTHONW}" "{ENTRY}"'
+
+
+def account() -> str:
+    """The user the task runs as. Tracking reads the foreground window, so it
+    has to be this session -- never SYSTEM, which has no desktop to look at."""
+    domain = os.environ.get("USERDOMAIN") or os.environ.get("COMPUTERNAME") or ""
+    user = os.environ.get("USERNAME", "")
+    return "\\".join(part for part in (domain, user) if part)
 
 
 def preflight() -> list:
@@ -69,19 +104,86 @@ def _run(args) -> subprocess.CompletedProcess:
     )
 
 
+def _xml_escape(text: str) -> str:
+    return (text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
 # -- Task Scheduler -----------------------------------------------------------
 
 
+def task_xml() -> str:
+    """The task definition. Every non-obvious setting is here on purpose --
+    see the module docstring for the four that default the wrong way."""
+    who = _xml_escape(account())
+    return f"""<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Cadence time tracker. Starts at logon and is restarted if it stops.</Description>
+  </RegistrationInfo>
+  <Triggers>
+    <LogonTrigger>
+      <Enabled>true</Enabled>
+      <UserId>{who}</UserId>
+      <Delay>{LOGON_DELAY}</Delay>
+    </LogonTrigger>
+    <TimeTrigger>
+      <Enabled>true</Enabled>
+      <StartBoundary>2020-01-01T00:00:00</StartBoundary>
+      <Repetition>
+        <Interval>{WATCHDOG_INTERVAL}</Interval>
+        <StopAtDurationEnd>false</StopAtDurationEnd>
+      </Repetition>
+    </TimeTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>{who}</UserId>
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <IdleSettings>
+      <StopOnIdleEnd>false</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <WakeToRun>false</WakeToRun>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>{_xml_escape(str(PYTHONW))}</Command>
+      <Arguments>"{_xml_escape(str(ENTRY))}"</Arguments>
+      <WorkingDirectory>{_xml_escape(str(DAEMON_DIR))}</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>
+"""
+
+
 def install_task() -> int:
-    result = _run([
-        "schtasks", "/Create",
-        "/TN", TASK_NAME,
-        "/TR", task_command(),
-        "/SC", "ONLOGON",
-        "/DELAY", LOGON_DELAY,
-        "/RL", "LIMITED",
-        "/F",
-    ])
+    # schtasks reads the definition as UTF-16; anything else is rejected with a
+    # parse error that does not mention encoding.
+    handle, path = tempfile.mkstemp(suffix=".xml", prefix="cadence-task-")
+    os.close(handle)
+    Path(path).write_text(task_xml(), encoding="utf-16")
+
+    try:
+        result = _run(["schtasks", "/Create", "/TN", TASK_NAME, "/XML", path, "/F"])
+    finally:
+        os.unlink(path)
+
     if result.returncode != 0:
         message = (result.stderr or result.stdout).strip()
         print(f"Task Scheduler refused: {message}")
@@ -89,14 +191,26 @@ def install_task() -> int:
             print(
                 "\nThis machine's policy blocks creating scheduled tasks from a\n"
                 "non-elevated shell. Either rerun this from an Administrator\n"
-                "terminal, or use the mechanism that needs no elevation:\n\n"
-                "    python autostart.py install startup"
+                "terminal, or fall back to the mechanism that needs no elevation:\n\n"
+                "    python autostart.py install startup\n\n"
+                "Be aware that the Startup folder is what made Cadence appear\n"
+                "five minutes late after every logon."
             )
         return result.returncode
 
-    delay = LOGON_DELAY.split(":")[1].lstrip("0") or "0"
+    seconds = LOGON_DELAY.removeprefix("PT").removesuffix("S")
+    minutes = WATCHDOG_INTERVAL.removeprefix("PT").removesuffix("M")
     print(f"Installed scheduled task '{TASK_NAME}'.")
-    print(f"Cadence will start {delay}s after you log in.")
+    print(f"  starts    {seconds}s after you log in")
+    print(f"  recovers  checked every {minutes} minutes; restarted if it isn't running")
+
+    # One mechanism, not two. The shortcut is the slow one, and leaving it in
+    # place would keep launching a second copy five minutes into every session
+    # -- harmless, because it refuses the port, but it would put a "not starting
+    # a second instance" warning in the log at every logon for no reason.
+    if shortcut_path().exists():
+        shortcut_path().unlink()
+        print(f"  removed   the old Startup shortcut ({shortcut_path().name})")
     return 0
 
 
@@ -112,6 +226,31 @@ def uninstall_task(quiet: bool = False) -> bool:
 
 def task_installed() -> bool:
     return _run(["schtasks", "/Query", "/TN", TASK_NAME]).returncode == 0
+
+
+def task_details() -> dict:
+    """What Task Scheduler thinks of the task: enabled, last run, last result.
+
+    An installed-but-disabled task reads exactly like a working one from a
+    dashboard, which is the failure this whole file exists to stop repeating.
+    """
+    result = _run(["schtasks", "/Query", "/TN", TASK_NAME, "/V", "/FO", "LIST"])
+    if result.returncode != 0:
+        return {}
+
+    wanted = {
+        "Scheduled Task State": "state",
+        "Last Run Time": "last_run",
+        "Last Result": "last_result",
+        "Next Run Time": "next_run",
+    }
+    found = {}
+    for line in result.stdout.splitlines():
+        key, _, value = line.partition(":")
+        name = wanted.get(key.strip())
+        if name and name not in found:
+            found[name] = value.strip()
+    return found
 
 
 # -- Startup folder -----------------------------------------------------------
@@ -136,7 +275,9 @@ def install_startup() -> int:
         return 1
 
     print(f"Installed startup shortcut: {target}")
-    print("Cadence will start when you log in.")
+    print("Cadence will start when you log in -- but on a measured machine that")
+    print("was five to six minutes after logon, every time. Prefer the task:")
+    print("    python autostart.py install")
     return 0
 
 
@@ -206,10 +347,16 @@ def status() -> int:
         print(f"warning: {problem}")
 
     task = task_installed()
+    details = task_details() if task else {}
     shortcut = shortcut_path().exists()
     live = running()
 
-    print(f"Scheduled task      {'installed' if task else 'not installed'}")
+    state = details.get("state", "")
+    print(f"Scheduled task      {state.lower() if state else 'not installed'}")
+    if details:
+        print(f"  last run          {details.get('last_run', '?')}"
+              f"  (result {details.get('last_result', '?')})")
+        print(f"  next run          {details.get('next_run', '?')}")
     print(f"Startup shortcut    {'installed' if shortcut else 'not installed'}")
     print(f"Running now         {'yes' if live else 'no'}")
     print(f"Log                 {log_path()}")
@@ -222,12 +369,19 @@ def status() -> int:
         )
     elif not task and not shortcut:
         print("\nNot starting automatically. Install with:  python autostart.py install")
+    elif shortcut and not task:
+        print(
+            "\nRunning on the Startup folder, which launches Cadence whenever the\n"
+            "shell gets round to it -- measured at five to six minutes after every\n"
+            "logon. The scheduled task starts it in seconds and restarts it if it\n"
+            "ever stops:  python autostart.py install"
+        )
 
     if (task or shortcut) and not live:
         print(
-            "\nSet to start automatically, but not running. Either you haven't\n"
-            "logged in since installing it, or it started and died -- the log\n"
-            "above says which. Start it now with:  python autostart.py start"
+            "\nSet to start automatically, but not running right now. Nothing that\n"
+            "was already recorded is affected -- the database is only ever appended\n"
+            "to. Start it now with:  python autostart.py start"
         )
     return 0
 
