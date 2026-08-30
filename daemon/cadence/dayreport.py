@@ -84,10 +84,13 @@ def sessions_table(page: Sheet, payload: dict) -> None:
         return
 
     page.heading("sessions")
+    # Set from the widest cell each column can hold, not by eye. The start cell
+    # is "12:07 am - 12:45 pm" at its worst -- 97pt -- which is 30pt wider than
+    # the 24-hour version these columns were first spaced for.
     start_x = MARGIN
-    length_x = MARGIN + 108
-    focus_x = MARGIN + 152
-    category_x = MARGIN + 168
+    length_x = MARGIN + 142
+    focus_x = MARGIN + 178
+    category_x = MARGIN + 190
     what_x = MARGIN + 250
 
     page.columns([

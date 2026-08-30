@@ -14,6 +14,7 @@ internals -- that is `pdf` -- and nothing about what a day or a week contains.
 from datetime import datetime
 
 from . import pdf
+from .digest import clock, fmt, hour_label  # noqa: F401  -- re-exported
 
 MARGIN = 56.0
 CONTENT_WIDTH = pdf.PAGE_WIDTH - MARGIN * 2
@@ -59,11 +60,6 @@ def long_date(day: str) -> str:
         return day
     # %-d and %#d disagree across platforms; strip the zero by hand instead.
     return parsed.strftime("%A, %d %B %Y").replace(" 0", " ", 1)
-
-
-def clock(stamp) -> str:
-    """The HH:MM out of an ISO timestamp, without reparsing it."""
-    return (stamp or "")[11:16]
 
 
 class Sheet:
@@ -142,7 +138,7 @@ def hour_axis(sheet: Sheet, x: float, width: float, step: int = 3) -> None:
     doc = sheet.doc
     for hour in range(0, 25, step):
         at = x + width * (hour / 24.0)
-        label = f"{hour:02d}"
+        label = hour_label(hour)
         if hour == 0:
             doc.text(at, sheet.y, label, "mono", 7, MUTED)
         elif hour == 24:
@@ -183,8 +179,6 @@ def share_table(page: Sheet, title: str, rows: list, label_of, color_of,
     Truncation is announced rather than silent. A top-twelve that looks like the
     whole list is how a page ends up quietly lying about a long tail.
     """
-    from .digest import fmt
-
     rows = [row for row in rows if row.get("duration_sec")]
     if not rows:
         return
@@ -204,13 +198,20 @@ def share_table(page: Sheet, title: str, rows: list, label_of, color_of,
     ])
     page.y += 12
 
+    # How much room the name has is decided by the widest time it will sit
+    # beside, not by a number picked to look right against one day's data.
+    name_x = MARGIN + 9
+    widest_time = max(pdf.width_of(fmt(row["duration_sec"]), "mono", 8.5)
+                      for row in shown)
+    name_limit = time_x - widest_time - 8 - name_x
+
     for row in shown:
         page.need(16)
         doc = page.doc
         color = color_of(row)
         doc.rect(MARGIN, page.y - 5, 5, 5, color)
-        doc.text(MARGIN + 9, page.y,
-                 pdf.ellipsize(label_of(row), "regular", 9, time_x - MARGIN - 24),
+        doc.text(name_x, page.y,
+                 pdf.ellipsize(label_of(row), "regular", 9, name_limit),
                  "regular", 9, INK)
         doc.text_right(time_x, page.y, fmt(row["duration_sec"]), "mono", 8.5, INK)
 

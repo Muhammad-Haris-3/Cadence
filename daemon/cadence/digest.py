@@ -16,6 +16,27 @@ from . import config
 TRAILING_DAYS = 7
 
 
+def clock(stamp) -> str:
+    """The time of day out of an ISO timestamp, on a twelve-hour clock.
+
+    Cadence's own storage is 24-hour and stays that way -- it sorts, and it is
+    never ambiguous. This is only for the reading end: every screen and report
+    goes through here, so the dashboard, the PDFs, the terminal report and the
+    text handed to the summariser can never disagree about what time it was.
+    """
+    text = (stamp or "")[11:16]
+    if len(text) != 5 or text[2] != ":":
+        return text
+    hour, minute = int(text[:2]), text[3:]
+    return f"{hour % 12 or 12}:{minute} {'am' if hour < 12 else 'pm'}"
+
+
+def hour_label(hour: int) -> str:
+    """An hour of the day for a timeline axis, where space is tight enough that
+    the space before am/pm is worth losing. Midnight at either end is 12am."""
+    return f"{hour % 12 or 12}{'am' if hour % 24 < 12 else 'pm'}"
+
+
 def fmt(seconds) -> str:
     total = int(seconds or 0)
     if total < 60:
@@ -105,8 +126,8 @@ def build(conn, day: str) -> str:
     if sessions:
         lines.append(f"\nSessions ({len(sessions)}):")
         for s in sessions:
-            start = (s["started_at"] or "")[11:16]
-            end = (s["ended_at"] or "")[11:16]
+            start = clock(s["started_at"])
+            end = clock(s["ended_at"])
             notes = []
             if s["interruptions"]:
                 notes.append(f"{s['interruptions']} interruptions")

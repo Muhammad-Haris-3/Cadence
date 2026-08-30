@@ -125,6 +125,37 @@ def marks(data: bytes) -> list:
     return found
 
 
+def text_marks(data: bytes) -> list:
+    """Only the text, as (page, x, baseline, width, body)."""
+    found = []
+    for number, page in enumerate(streams(data)):
+        for alias, size, x, y, body in SET_TEXT.findall(page):
+            found.append((number, float(x), float(y),
+                          pdf.width_of(body, BY_ALIAS[alias], float(size)), body))
+    return found
+
+
+def collisions(data: bytes) -> list:
+    """Pairs of runs that share a baseline and overlap horizontally.
+
+    Column positions are numbers in a layout function, and the widest thing a
+    column can hold is somewhere else entirely -- so a change to a *format*
+    silently pushes one cell under its neighbour. Going from a 24-hour clock to
+    "12:07 am - 12:45 pm" widened the start cell by 30pt and did exactly that.
+    """
+    rows = {}
+    for number, x, y, width, body in text_marks(data):
+        rows.setdefault((number, round(y, 1)), []).append((x, width, body))
+
+    overlapping = []
+    for cells in rows.values():
+        cells.sort()
+        for (x, width, body), (next_x, _, next_body) in zip(cells, cells[1:]):
+            if x + width > next_x + 0.5:
+                overlapping.append(f"{body!r} runs into {next_body!r}")
+    return overlapping
+
+
 # -- a day to render ----------------------------------------------------------
 
 AWKWARD = (
@@ -454,6 +485,40 @@ def main():
     results.append(check_true("a week in progress says how far it goes",
                               any("still running" in run
                                   for run in text_runs(weekreport.render(running)))))
+
+    # -- the clock ---------------------------------------------------------
+    print()
+    print("telling the time")
+    from cadence.digest import clock, hour_label
+
+    for label, stamp, want in (
+        ("midnight is 12am, not 0am", "2026-08-30T00:07:00", "12:07 am"),
+        ("noon is 12pm, not 0pm", "2026-08-30T12:00:00", "12:00 pm"),
+        ("the minute before noon is am", "2026-08-30T11:59:00", "11:59 am"),
+        ("the minute after noon is pm", "2026-08-30T12:01:00", "12:01 pm"),
+        ("afternoon counts from one", "2026-08-30T13:05:00", "1:05 pm"),
+        ("no leading zero on the hour", "2026-08-30T03:55:00", "3:55 am"),
+        ("the last minute of the day", "2026-08-30T23:59:00", "11:59 pm"),
+    ):
+        results.append(check(label, clock(stamp), want))
+    results.append(check("a missing timestamp is blank, not a crash", clock(None), ""))
+    results.append(check("so is a string with no time in it", clock("nonsense"), ""))
+    results.append(check("the axis runs midnight to midnight",
+                         [hour_label(h) for h in range(0, 25, 3)],
+                         ["12am", "3am", "6am", "9am", "12pm", "3pm", "6pm", "9pm", "12am"]))
+
+    print()
+    print("no column runs into the one beside it")
+    for label, rendered_pdf in (("day", dayreport.render(payload())),
+                                ("week", weekreport.render(week_payload()))):
+        results.append(check(f"{label} report", collisions(rendered_pdf), []))
+    # The worst case for the start column: a session that begins before one and
+    # ends after it, so both halves are two-digit and both carry a suffix.
+    widest = payload()
+    widest["sessions"][0]["start"] = "2026-08-30T12:07:00"
+    widest["sessions"][0]["end"] = "2026-08-30T12:45:00"
+    results.append(check("day report at its widest clock",
+                         collisions(dayreport.render(widest)), []))
 
     print(f"\n{sum(results)}/{len(results)} passed\n")
     return 0 if all(results) else 1

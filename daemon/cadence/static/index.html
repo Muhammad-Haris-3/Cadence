@@ -518,6 +518,20 @@ function fmt(seconds) {
   return Math.floor(m / 60) + "h " + String(m % 60).padStart(2, "0") + "m";
 }
 
+// Twelve-hour, to match every other surface Cadence prints a time on. Storage
+// stays 24-hour: it sorts, and it is never ambiguous. This is the reading end.
+function clock(stamp) {
+  const text = stamp ? stamp.slice(11, 16) : "";
+  if (text.length !== 5 || text[2] !== ":") return text;
+  const hour = Number(text.slice(0, 2));
+  return (hour % 12 || 12) + ":" + text.slice(3) + (hour < 12 ? " am" : " pm");
+}
+
+// Tight enough on an axis that the space before am/pm is worth losing.
+function hourLabel(hour) {
+  return ((hour % 12) || 12) + ((hour % 24) < 12 ? "am" : "pm");
+}
+
 function pct(part, whole) {
   return whole > 0 ? Math.round((part / whole) * 100) : 0;
 }
@@ -560,7 +574,7 @@ function timeline(sessions) {
   }).join("");
 
   const hours = [0, 3, 6, 9, 12, 15, 18, 21, 24].map(function (h) {
-    return '<span style="left:' + ((h / 24) * 100) + '%">' + String(h).padStart(2, "0") + "</span>";
+    return '<span style="left:' + ((h / 24) * 100) + '%">' + hourLabel(h) + "</span>";
   }).join("");
 
   return '<section><h2>The day</h2><div class="timeline">' + blocks +
@@ -577,7 +591,7 @@ function sessionTable(sessions) {
       ? '<span class="note">+' + s.interruptions + " interruption" + (s.interruptions > 1 ? "s" : "") + "</span>"
       : "";
     return "<tr>" +
-      '<td class="num muted">' + s.start.slice(11, 16) + "</td>" +
+      '<td class="num muted">' + clock(s.start) + "</td>" +
       '<td class="num">' + fmt(s.duration_sec) + "</td>" +
       '<td class="num" style="width:170px"><span class="meter"><i style="width:' +
         Math.min(s.focus_score, 100) + "%;background:" + color(s.category) +
@@ -617,7 +631,7 @@ function categoryTable(categories) {
 }
 
 function clock(stamp) {
-  return stamp ? stamp.slice(11, 16) : "now";
+  return stamp ? clock(stamp) : "now";
 }
 
 function visitList(a) {

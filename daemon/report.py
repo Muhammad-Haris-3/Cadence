@@ -4,6 +4,7 @@ import sys
 from datetime import date
 
 from cadence import categories, config, db, sessionizer
+from cadence.digest import clock
 
 # Window titles are full of emoji and non-Latin text, and the Windows console
 # defaults to cp1252, which raises on both. Replace what can't be shown rather
@@ -42,7 +43,7 @@ def print_sessions(conn, day: str) -> None:
     print(f"  {'start':<7}{'length':>10}{'focus':>7}   {'category':<13}what")
     print("  " + "-" * 62)
     for s in sessions:
-        start = (s["started_at"] or "")[11:16]
+        start = clock(s["started_at"])
         note = ""
         if s["interruptions"]:
             note = f"  (+{s['interruptions']} interruption{'s' if s['interruptions'] > 1 else ''})"
