@@ -12,7 +12,6 @@ you happen to be visiting -- can reach a loopback port:
      for curl and tests) are accepted.
 """
 
-import socket
 import threading
 import time
 from dataclasses import dataclass
@@ -102,19 +101,9 @@ def build_app(token: str, state: TabState = STATE) -> FastAPI:
 
 
 def port_in_use() -> bool:
-    """Whether another Cadence already holds the port.
-
-    Two samplers on one database would double-count every second, so both entry
-    points check this before starting anything.
-    """
-    probe = socket.socket()
-    try:
-        probe.bind((config.INGEST_HOST, config.INGEST_PORT))
-        return False
-    except OSError:
-        return True
-    finally:
-        probe.close()
+    """Kept here because every caller already reaches for it here; the check
+    itself lives in `config`, where asking it costs no imports."""
+    return config.port_in_use()
 
 
 def server_config(token: str, app=None) -> uvicorn.Config:

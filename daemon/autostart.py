@@ -62,11 +62,12 @@ ENTRY = DAEMON_DIR / "tray_app.pyw"
 # dashboard straight after logging in finds a tracker already answering.
 LOGON_DELAY = "PT20S"
 
-# The watchdog. Every tick asks Task Scheduler to run the task; if Cadence is
-# already up the task is still running, MultipleInstancesPolicy says IgnoreNew,
-# and nothing happens. If it died -- a crash, a killed process, a session that
-# ended badly -- this is what brings it back, with nobody watching.
-WATCHDOG_INTERVAL = "PT5M"
+# The watchdog, and the worst-case hole an unexplained death leaves in the day:
+# whatever happens, tracking resumes within one tick. Every tick launches the
+# tray app, which checks the port before importing anything heavy and exits in
+# milliseconds when Cadence is already up -- cheap enough that the interval is
+# chosen for how much time may be lost, not for what the check costs.
+WATCHDOG_INTERVAL = "PT2M"
 
 
 def startup_dir() -> Path:

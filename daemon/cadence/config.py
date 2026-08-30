@@ -33,6 +33,30 @@ INGEST_PORT = 8765
 
 TOKEN_PATH = DATA_DIR / "extension_token.txt"
 
+
+def port_in_use() -> bool:
+    """Whether a Cadence already holds the port.
+
+    Two samplers on one database would double-count every second, so every
+    entry point asks this before starting anything.
+
+    It lives here, beside the port number and away from anything heavy, because
+    the watchdog asks it a few hundred times a day and the answer is almost
+    always yes. Reaching it through `ingest` meant importing fastapi, uvicorn,
+    pydantic and pystray first -- 0.7s of a warm machine, far more of a cold
+    one -- to learn something a socket answers in a third of a millisecond.
+    """
+    import socket
+
+    probe = socket.socket()
+    try:
+        probe.bind((INGEST_HOST, INGEST_PORT))
+        return False
+    except OSError:
+        return True
+    finally:
+        probe.close()
+
 # A tab report older than this is treated as unknown rather than assumed still
 # current -- an MV3 service worker can be asleep, and stale data is worse than
 # no data.

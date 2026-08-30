@@ -14,11 +14,13 @@ passes whether or not the bug is present.
 """
 
 import os
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 os.environ["CADENCE_DATA_DIR"] = tempfile.mkdtemp(prefix="cadence-test-")
 
 
@@ -76,6 +78,24 @@ def main() -> int:
     written = logs.LOG_PATH.exists() and "hello from a console-less process" in \
         logs.LOG_PATH.read_text(encoding="utf-8")
     results.append(check("the line reached the log file", written))
+
+    # 4. The watchdog runs the entry point every couple of minutes and almost
+    #    always finds Cadence already up. That path must not drag in the web
+    #    stack: reaching the port check through `ingest` imported fastapi,
+    #    uvicorn, pydantic and pystray -- 0.7s of a warm machine, far more of a
+    #    cold one -- to learn what a socket bind answers in a third of a
+    #    millisecond, a few hundred times a day, on a laptop.
+    snippet = (
+        "import sys; sys.path.insert(0, %r);"
+        "from cadence import config; config.port_in_use();"
+        "print(','.join(m for m in ('fastapi','uvicorn','pydantic','pystray','PIL')"
+        "               if m in sys.modules))" % str(ROOT)
+    )
+    probe = subprocess.run([sys.executable, "-c", snippet],
+                           capture_output=True, text=True)
+    results.append(check("the port check pulls in nothing heavy",
+                         probe.stdout.strip() == "",
+                         probe.stdout.strip() or probe.stderr.strip()))
 
     print(f"\n{sum(results)}/{len(results)} passed\n")
     return 0 if all(results) else 1

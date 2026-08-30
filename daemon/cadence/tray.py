@@ -200,10 +200,15 @@ class TrayApp:
         log.info("tray starting (data dir %s)", config.DATA_DIR)
 
         if ingest.port_in_use():
-            log.warning("port %s already in use; not starting a second instance",
-                        config.INGEST_PORT)
-            self._warn_already_running()
-            return 1
+            # A race guard now rather than a discovery: tray_app.pyw checks the
+            # port before importing any of this. Reached only when two starts
+            # overlap -- so it is logged and nothing is said on screen. It used
+            # to raise a message box, which was right when only a person could
+            # cause a second instance and wrong the moment a watchdog began
+            # trying one every couple of minutes.
+            log.info("port %s already in use; leaving the running instance alone",
+                     config.INGEST_PORT)
+            return 0
 
         token = config.load_or_create_token()
         ingest.serve_in_background(token, web.build_app(token))
@@ -243,14 +248,6 @@ class TrayApp:
 
         self.shutdown("tray icon loop ended")  # a no-op after quit; a guard otherwise
         return 0
-
-    @staticmethod
-    def _warn_already_running() -> None:
-        _show_message(
-            f"Cadence is already running (port {config.INGEST_PORT} is in use).\n\n"
-            "Only one instance may run, or every second would be counted twice."
-        )
-
 
 def run() -> int:
     """Top-level guard. Under pythonw a traceback goes nowhere, so write it
