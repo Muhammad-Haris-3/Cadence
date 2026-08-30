@@ -630,10 +630,6 @@ function categoryTable(categories) {
     rows + "</table></section>";
 }
 
-function clock(stamp) {
-  return stamp ? clock(stamp) : "now";
-}
-
 function visitList(a) {
   const parts = a.visits.map(function (v) {
     const gap = v.break_sec
@@ -651,7 +647,7 @@ function visitList(a) {
 
     return gap +
       '<div class="visit">' +
-        '<span class="when">' + clock(v.start) + " &ndash; " + clock(v.end) + "</span>" +
+        '<span class="when">' + clock(v.start) + " &ndash; " + (clock(v.end) || "now") + "</span>" +
         '<span class="howlong">' + fmt(v.duration_sec) + "</span>" +
         aside +
       "</div>";
@@ -677,7 +673,7 @@ function appTable(apps) {
           '<span class="label">' + esc(a.name) + "</span></span></td>" +
         '<td class="num">' + fmt(a.duration_sec) + "</td>" +
         '<td class="num muted">' + visits + (visits > 1 ? " visits" : " visit") + "</td>" +
-        '<td class="num muted">' + clock(a.first_seen) + " &ndash; " + clock(a.last_seen) + "</td>" +
+        '<td class="num muted">' + clock(a.first_seen) + " &ndash; " + (clock(a.last_seen) || "now") + "</td>" +
         '<td class="num muted">' + engaged + "%</td>" +
       "</tr>" +
       '<tr class="detail" data-detail="' + esc(a.app) + '"' + (open ? "" : " hidden") + ">" +
@@ -748,13 +744,20 @@ function render(data) {
 }
 
 async function load(day) {
+  // Fetching and rendering are caught separately, because for one evening they
+  // were not. A rendering bug in this file threw, the single catch below
+  // reported it as "waiting for the tracker", and the tracker was running fine
+  // the whole time -- the page accused the daemon of its own crash, and the
+  // retry rethrew every five seconds forever. A message this reassuring has to
+  // be earned: it may only be shown when the fetch itself failed.
+  let data;
   try {
     let target = day;
     if (!target) {
       const days = await (await fetch("/api/days")).json();
       target = days.today;
     }
-    render(await (await fetch("/api/day/" + target)).json());
+    data = await (await fetch("/api/day/" + target)).json();
   } catch (err) {
     // The page itself came from the service worker cache, which is why you are
     // reading this instead of a browser connection error.
@@ -771,6 +774,18 @@ async function load(day) {
       "the tracker answers. It starts on its own shortly after you log in.";
     clearTimeout(timer);
     timer = setTimeout(function () { load(day); }, 5000);
+    return;
+  }
+
+  try {
+    render(data);
+  } catch (err) {
+    // The data arrived; we could not draw it. Say that, and say where to look,
+    // rather than blaming the daemon that just answered.
+    el("lede").textContent =
+      "The tracker answered, but this page could not draw the result: " +
+      err.message + " — the recording is unaffected.";
+    throw err;   // and leave it in the console, with a stack
   }
 }
 
