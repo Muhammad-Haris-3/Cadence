@@ -106,6 +106,15 @@ rejects any `Origin` that is not `chrome-extension://`.
 **Firefox/Safari** would each need their own port of the extension; only
 Chromium browsers are wired up.
 
+## Small Steps
+
+`GET /api/scroll/{day}` gives the habit app [Small Steps](../small-steps) the one
+thing it needs: seconds in the `distraction` category per hour, the top five
+sinks (site or app name), and whether Cadence tracked that day at all. It never
+includes window titles or URLs. It is the only endpoint another origin may read.
+`http://localhost:3000` is allowed by default; add more origins, one per line,
+in `~/.cadence/allowed_origins.txt` (read on every request, no restart).
+
 ## Daily summary
 
 The free path is the default and the better one:
@@ -165,6 +174,7 @@ daemon/
     tracker.py     the sampling loop
     urls.py        strips credentials out of reported URLs
     ingest.py      localhost endpoint the browser extension reports to
+    scroll.py      distraction totals for Small Steps, the one cross-origin read
     categories.py  app/title -> category rules
     web.py         dashboard JSON API and page routes
     tray.py        tray icon, pause/resume, single-instance guard

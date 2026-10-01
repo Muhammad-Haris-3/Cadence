@@ -33,6 +33,20 @@ INGEST_PORT = 8765
 
 TOKEN_PATH = DATA_DIR / "extension_token.txt"
 
+# Web origins allowed to read /api/scroll (distraction totals only). Small Steps
+# in development is built in; add a deployed URL such as
+# https://small-steps.vercel.app on its own line in this file.
+SCROLL_ORIGINS_PATH = DATA_DIR / "allowed_origins.txt"
+
+
+def scroll_origins() -> set:
+    origins = {"http://localhost:3000"}
+    try:
+        lines = SCROLL_ORIGINS_PATH.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return origins
+    return origins | {line.strip().rstrip("/") for line in lines if line.strip()}
+
 
 def port_in_use() -> bool:
     """Whether a Cadence already holds the port.

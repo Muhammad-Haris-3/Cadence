@@ -12,12 +12,12 @@ the busy timeout in db.connect.
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from fastapi import HTTPException
-from fastapi.responses import FileResponse, Response
+from fastapi import HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import (appnames, categories, config, db, dayreport, icons, ingest,
-               sessionizer, summary, weekreport)
+               scroll, sessionizer, summary, weekreport)
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -395,6 +395,32 @@ def build_app(token: str):
                 "Content-Length": str(len(content)),
             },
         )
+
+    @app.get("/api/scroll/{day}")
+    def get_scroll(day: str, request: Request):
+        """Distraction totals for Small Steps -- the only cross-origin read.
+
+        Every other endpoint stays same-origin. This one answers any caller (a
+        plain GET cannot be stopped from arriving), but the browser only hands
+        the response to an allowlisted origin's script.
+        """
+        try:
+            datetime.strptime(day, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="day must be YYYY-MM-DD")
+
+        conn = db.read_connection()
+        try:
+            _ensure_built(conn, day)
+            payload = scroll.scroll_day(conn, day)
+        finally:
+            conn.close()
+
+        headers = {"Vary": "Origin", "Cache-Control": "no-store"}
+        origin = request.headers.get("origin", "")
+        if origin in config.scroll_origins():
+            headers["Access-Control-Allow-Origin"] = origin
+        return JSONResponse(payload, headers=headers)
 
     @app.get("/api/icon")
     def app_icon(app: str):
