@@ -7,7 +7,7 @@
 <link rel="manifest" href="/manifest.webmanifest" />
 <link rel="icon" href="/favicon.ico" sizes="any" />
 <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
-<meta name="theme-color" content="#4C4FA8" />
+<meta name="theme-color" id="theme-color" content="#0B0F19" />
 <meta name="application-name" content="Cadence" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -23,6 +23,10 @@
 
        data-philosophy  editorial | studio
        data-mode        light     | dark
+
+     Layout rules that hold in both: every table shares one column rhythm
+     (fixed layout, explicit widths), every cell has the same side padding, and
+     every control in the header is the same height.
      ------------------------------------------------------------------------ */
 
   :root,
@@ -31,9 +35,12 @@
     --text:          #1C1917;
     --text-2:        #78716C;
     --border:        #E7E5E4;
+    --gap-line:      var(--bg);       /* hairline between touching timeline blocks */
+    --accent:        #1C1917;
 
     --surface:       transparent;
     --radius:        0;
+    --control-radius: 4px;
     --shadow:        none;
     --card-pad:      0;
     --card-border:   none;
@@ -42,6 +49,9 @@
     --meter-height:  4px;
     --band-height:   42px;
     --band-radius:   2px;
+    --chip-tint:     0%;
+    --chip-pad:      0;
+    --row-hover:     transparent;
 
     --display:       "Caveat", ui-serif, Georgia, serif;
     --body:          "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -80,6 +90,7 @@
     --text:    #F5F5F4;
     --text-2:  #A8A29E;
     --border:  #292524;
+    --accent:  #F5F5F4;
 
     --cat-code:        #8C8FE0;
     --cat-learning:    #5FC7BD;
@@ -94,91 +105,102 @@
     --cat-away:        #44403C;
   }
 
+  /* Studio: calm cards, one sans-serif with tabular figures for numbers, and a
+     softened category palette so the timeline reads as a day, not a flag. */
   [data-philosophy="studio"] {
-    --bg:            #EEF2F7;
+    --bg:            #F4F6FA;
     --text:          #0F172A;
     --text-2:        #64748B;
-    --border:        #E2E8F0;
+    --border:        #E5E9F0;
+    --gap-line:      var(--surface);
+    --accent:        #5B5BD6;
 
     --surface:       #FFFFFF;
-    --radius:        14px;
-    --shadow:        0 1px 2px rgba(15, 23, 42, .05), 0 10px 30px -18px rgba(15, 23, 42, .35);
-    --card-pad:      1.6rem 1.7rem;
+    --radius:        18px;
+    --control-radius: 10px;
+    --shadow:        0 1px 2px rgba(15, 23, 42, .04), 0 12px 32px -20px rgba(15, 23, 42, .25);
+    --card-pad:      1.75rem 2rem;
     --card-border:   1px solid var(--border);
-    --card-gap:      1.5rem;
+    --card-gap:      1.25rem;
     --icon-display:  block;
-    --meter-height:  7px;
-    --band-height:   54px;
-    --band-radius:   6px;
+    --meter-height:  6px;
+    --band-height:   48px;
+    --band-radius:   8px;
+    --chip-tint:     14%;
+    --chip-pad:      .22rem .65rem .22rem .55rem;
+    --row-hover:     rgba(15, 23, 42, .025);
 
     --display:       "Inter", system-ui, sans-serif;
     --body:          "Inter", system-ui, sans-serif;
-    --mono:          "IBM Plex Mono", ui-monospace, monospace;
+    --mono:          "Inter", system-ui, sans-serif;
     --body-size:     14px;
 
     --h1-family:     var(--display);
-    --h1-size:       1.7rem;
+    --h1-size:       1.75rem;
     --h1-weight:     700;
-    --h1-spacing:    -.02em;
+    --h1-spacing:    -.025em;
 
-    --h2-size:       .95rem;
+    --h2-size:       1rem;
     --h2-weight:     600;
-    --h2-spacing:    0;
+    --h2-spacing:    -.01em;
     --h2-transform:  none;
 
     --lede-family:   var(--display);
-    --lede-size:     1.05rem;
-    --lede-weight:   500;
+    --lede-size:     1rem;
+    --lede-weight:   400;
 
-    --cat-code:        #4F46E5;
-    --cat-learning:    #0D9488;
-    --cat-docs:        #0284C7;
-    --cat-design:      #9333EA;
-    --cat-ai:          #7C3AED;
-    --cat-comms:       #D97706;
-    --cat-distraction: #E11D48;
-    --cat-browsing:    #475569;
+    --cat-code:        #5B5BD6;
+    --cat-learning:    #12A594;
+    --cat-docs:        #3B82C4;
+    --cat-design:      #A855C7;
+    --cat-ai:          #8B6FD6;
+    --cat-comms:       #D29A2E;
+    --cat-distraction: #E5566F;
+    --cat-browsing:    #64748B;
     --cat-other:       #94A3B8;
-    --cat-idle:        #CBD5E1;
-    --cat-away:        #CBD5E1;
+    --cat-idle:        #E2E8F0;
+    --cat-away:        #E2E8F0;
   }
 
   [data-philosophy="studio"][data-mode="dark"] {
-    --bg:       #0B1120;
-    --text:     #E2E8F0;
-    --text-2:   #94A3B8;
-    --border:   #1E293B;
-    --surface:  #131C31;
-    --shadow:   0 1px 2px rgba(0, 0, 0, .5), 0 10px 30px -18px rgba(0, 0, 0, .8);
+    --bg:       #0B0F19;
+    --text:     #E6EAF2;
+    --text-2:   #8A94A8;
+    --border:   #1C2333;
+    --surface:  #111726;
+    --accent:   #8B8DF5;
+    --shadow:   0 1px 2px rgba(0, 0, 0, .4), 0 16px 40px -24px rgba(0, 0, 0, .9);
+    --row-hover: rgba(255, 255, 255, .025);
 
-    --cat-code:        #818CF8;
-    --cat-learning:    #2DD4BF;
-    --cat-docs:        #38BDF8;
-    --cat-design:      #C084FC;
-    --cat-ai:          #A78BFA;
-    --cat-comms:       #FBBF24;
-    --cat-distraction: #FB7185;
-    --cat-browsing:    #94A3B8;
-    --cat-other:       #64748B;
-    --cat-idle:        #1E293B;
-    --cat-away:        #1E293B;
+    --cat-code:        #8B8DF5;
+    --cat-learning:    #3CC7B4;
+    --cat-docs:        #62A8E8;
+    --cat-design:      #C88BE0;
+    --cat-ai:          #A897F2;
+    --cat-comms:       #E8B75A;
+    --cat-distraction: #F07D92;
+    --cat-browsing:    #8190A8;
+    --cat-other:       #5E6A80;
+    --cat-idle:        #1C2333;
+    --cat-away:        #1C2333;
   }
 
   * { box-sizing: border-box; }
 
   body {
     margin: 0;
-    padding: 4rem 1.5rem 6rem;
+    padding: 3.5rem 1.5rem 6rem;
     background: var(--bg);
     color: var(--text);
     font-family: var(--body);
     font-size: var(--body-size);
-    line-height: 1.6;
+    line-height: 1.55;
     font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
     transition: background-color .25s ease, color .25s ease;
   }
 
-  main { max-width: 1080px; margin: 0 auto; }
+  main { max-width: 1040px; margin: 0 auto; }
 
   /* -- header ------------------------------------------------------------ */
 
@@ -186,9 +208,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1.5rem;
+    gap: 1rem 1.5rem;
     flex-wrap: wrap;
-    margin-bottom: .75rem;
+    margin-bottom: .6rem;
   }
 
   h1 {
@@ -200,51 +222,44 @@
     line-height: 1.1;
   }
 
-  .controls { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
+  .controls { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 
-  nav { display: flex; align-items: center; gap: .75rem; }
-
-  nav button, .icon-button {
-    font: inherit;
-    font-family: var(--body);
-    background: none;
-    border: none;
-    color: var(--text-2);
-    cursor: pointer;
-    padding: .3rem .55rem;
-    border-radius: 6px;
-    line-height: 1;
-  }
-  nav button:hover:not(:disabled), .icon-button:hover { color: var(--text); background: var(--border); }
-  nav button:disabled { opacity: .25; cursor: default; }
-
-  #day-label { min-width: 11ch; text-align: center; font-weight: 500; color: var(--text); }
-
-  /* The segmented switch borrows --radius, so it is a square block in
-     Editorial and a pill in Studio without a second rule. */
-  .segmented {
+  /* Every control group is the same pill: 2px inset, 32px buttons, 36px tall. */
+  .segmented, .toolgroup {
     display: flex;
+    align-items: center;
     gap: 2px;
+    height: 36px;
     padding: 2px;
     border: 1px solid var(--border);
-    border-radius: calc(var(--radius) / 2 + 4px);
+    border-radius: calc(var(--control-radius) + 2px);
     background: var(--surface);
   }
-  .segmented button {
+
+  .segmented button, .toolgroup button, .icon-button {
     font: inherit;
     font-family: var(--body);
-    font-size: .78rem;
+    font-size: .8rem;
+    font-weight: 500;
+    height: 30px;
     background: none;
     border: none;
     color: var(--text-2);
     cursor: pointer;
-    padding: .3rem .7rem;
-    border-radius: calc(var(--radius) / 2 + 2px);
+    padding: 0 .75rem;
+    border-radius: var(--control-radius);
+    line-height: 1;
+    transition: background-color .15s ease, color .15s ease;
   }
+  .icon-button, .toolgroup .icon-button { width: 32px; padding: 0; display: inline-grid; place-items: center; text-decoration: none; }
   .segmented button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
-  .segmented button:not([aria-pressed="true"]):hover { color: var(--text); }
+  .segmented button:not([aria-pressed="true"]):hover,
+  .toolgroup button:hover:not(:disabled),
+  .icon-button:hover { color: var(--text); background: var(--border); }
+  .toolgroup button:disabled { opacity: .3; cursor: default; }
 
-  a.icon-button { display: inline-flex; text-decoration: none; }
+  nav.toolgroup button { width: 32px; padding: 0; font-size: 1rem; }
+  #day-label { min-width: 10ch; text-align: center; font-weight: 600; font-size: .85rem; color: var(--text); }
 
   .icon-button svg { width: 16px; height: 16px; display: block; stroke: currentColor; fill: none;
                      stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -254,9 +269,10 @@
     font-size: var(--lede-size);
     font-weight: var(--lede-weight);
     color: var(--text-2);
-    margin: 0 0 2.5rem;
+    margin: 0 0 2rem;
   }
   .lede strong { color: var(--text); font-weight: 600; }
+  .lede .sep { margin: 0 .5rem; opacity: .5; }
 
   /* -- cards -------------------------------------------------------------- */
 
@@ -281,77 +297,109 @@
 
   /* -- timeline ----------------------------------------------------------- */
 
-  .timeline { position: relative; height: var(--band-height); }
+  /* Faint gridlines every three hours, so a block can be placed by eye. */
+  .timeline {
+    position: relative;
+    height: var(--band-height);
+    border-radius: var(--band-radius);
+    background-image: linear-gradient(to right, var(--border) 1px, transparent 1px);
+    background-size: 12.5% 100%;
+  }
+  [data-philosophy="studio"] .timeline { background-color: color-mix(in srgb, var(--border) 55%, transparent); }
   .timeline .block {
     position: absolute;
     top: 0;
-    height: var(--band-height);
-    border-radius: var(--band-radius);
-    min-width: 2px;
-    transition: height .25s ease, border-radius .25s ease;
+    height: 100%;
+    border-radius: calc(var(--band-radius) - 2px);
+    min-width: 3px;
+    box-shadow: 0 0 0 1px var(--gap-line);  /* keeps neighbours from melting together */
+    transition: filter .15s ease;
   }
-  [data-philosophy="studio"] .timeline { background: var(--border); border-radius: var(--band-radius); }
+  .timeline .block:hover { filter: brightness(1.12); }
 
-  .hours { position: relative; height: 1.4rem; margin-top: .5rem; }
+  .hours { position: relative; height: 1.2rem; margin-top: .6rem; }
   .hours span { position: absolute; transform: translateX(-50%); font-size: .7rem; color: var(--text-2); }
+  .hours span:first-child { transform: none; }
+  .hours span:last-child { transform: translateX(-100%); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin-top: 1.1rem; font-size: .78rem; color: var(--text-2); }
+  .legend span { display: inline-flex; align-items: center; gap: .45rem; }
+  .legend i { width: .6rem; height: .6rem; border-radius: 3px; }
+  .legend b { color: var(--text); font-weight: 500; }
 
   /* -- tables ------------------------------------------------------------- */
 
-  table { width: 100%; border-collapse: collapse; }
+  table { width: 100%; min-width: 640px; border-collapse: collapse; table-layout: fixed; }
+  /* A narrow window scrolls the table inside its card, never the whole page. */
+  section { overflow-x: auto; }
 
   td, th {
-    padding: .6rem 0;
+    padding: .8rem .9rem;
     border-bottom: 1px solid var(--border);
     text-align: left;
     font-weight: 400;
     vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  tr:last-child td { border-bottom: none; }
+  td:first-child, th:first-child { padding-left: 0; }
+  td:last-child, th:last-child { padding-right: 0; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:not(.detail):hover td { background: var(--row-hover); }
 
   th {
-    font-size: .7rem;
+    font-size: .68rem;
+    font-weight: 500;
     letter-spacing: .08em;
     text-transform: uppercase;
     color: var(--text-2);
-    padding-bottom: .5rem;
+    padding-top: 0;
+    padding-bottom: .7rem;
   }
 
-  .num { text-align: right; font-family: var(--mono); white-space: nowrap; }
+  .num { text-align: right; font-family: var(--mono); }
   .muted { color: var(--text-2); }
-  .truncate { max-width: 1px; width: 42%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  .dot {
-    display: inline-block;
-    width: .55rem; height: .55rem;
-    border-radius: 50%;
-    margin-right: .55rem;
-    flex: none;
+  /* Category chip: a dot and a name, tinted in Studio, bare in Editorial. */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    max-width: 100%;
+    padding: var(--chip-pad);
+    border-radius: 99px;
+    background: color-mix(in srgb, var(--c) var(--chip-tint), transparent);
+    font-size: .8rem;
+    line-height: 1.4;
   }
+  .chip::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: var(--c); flex: none; }
 
   /* Real application icons, extracted from the executables. Editorial keeps
-     them hidden -- the category dot is enough there. */
+     them hidden -- the category chip is enough there. */
   .appicon {
     display: var(--icon-display);
     width: 18px; height: 18px;
     border-radius: 4px;
-    margin-right: .6rem;
     flex: none;
   }
-  .with-icon { display: flex; align-items: center; min-width: 0; }
-  .with-icon > span.label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .with-icon { display: flex; align-items: center; gap: .65rem; min-width: 0; }
+  .with-icon > .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .with-icon > .note, .with-icon > .chip { flex: none; }
 
+  /* A meter and its number, laid out as a pair with room between them. */
+  .score { display: flex; align-items: center; gap: .75rem; }
   .meter {
-    display: inline-block;
-    width: 110px;
+    flex: 1;
     height: var(--meter-height);
     background: var(--border);
     border-radius: 99px;
-    vertical-align: middle;
     overflow: hidden;
   }
   .meter > i { display: block; height: 100%; border-radius: 99px; transition: width .3s ease; }
+  .score > span { flex: none; width: 4.5ch; text-align: right; color: var(--text-2); font-family: var(--mono); }
 
-  .note { color: var(--text-2); font-size: .8rem; }
+  .note { color: var(--text-2); font-size: .78rem; }
 
   /* -- applications, and the story behind each one -------------------------- */
 
@@ -361,32 +409,31 @@
   .chev {
     flex: none;
     width: .8rem;
-    margin-right: .35rem;
     color: var(--text-2);
-    font-size: .65rem;
+    font-size: .6rem;
     transition: transform .18s ease;
   }
   tr.app[aria-expanded="true"] .chev { transform: rotate(90deg); }
 
-  tr.detail > td { padding: 0; border-bottom: 1px solid var(--border); }
+  tr.detail > td { padding: 0; border-bottom: 1px solid var(--border); white-space: normal; }
   tr.detail[hidden] { display: none; }
 
   .visits {
-    padding: .5rem 0 .9rem 1.15rem;
-    margin-left: .25rem;
+    padding: .4rem 0 1rem 1.2rem;
+    margin-left: .35rem;
     border-left: 1px solid var(--border);
   }
 
   .visit {
     display: flex;
     align-items: baseline;
-    gap: .75rem;
-    padding: .22rem 0;
+    gap: 1rem;
+    padding: .25rem 0;
     font-size: .82rem;
   }
-  .visit .when { font-family: var(--mono); color: var(--text); white-space: nowrap; }
-  .visit .howlong { font-family: var(--mono); color: var(--text-2); white-space: nowrap; }
-  .visit .aside { color: var(--text-2); font-size: .78rem; }
+  .visit .when { font-family: var(--mono); color: var(--text); white-space: nowrap; min-width: 10.5rem; }
+  .visit .howlong { font-family: var(--mono); color: var(--text-2); white-space: nowrap; min-width: 4.5rem; }
+  .visit .aside { color: var(--text-2); font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* A break is drawn as absence: no rule, no marker, just indented space, so
      the eye reads the gap as the gap rather than as another entry. */
@@ -397,7 +444,7 @@
     font-style: italic;
   }
 
-  .empty { color: var(--text-2); font-family: var(--lede-family); font-size: 1.2rem; padding: 1.5rem 0; }
+  .empty { color: var(--text-2); font-family: var(--lede-family); font-size: 1.1rem; padding: 1rem 0; margin: 0; }
 
   /* -- written summary ----------------------------------------------------- */
 
@@ -419,6 +466,13 @@
   }
 
   footer { color: var(--text-2); font-size: .75rem; margin-top: 3rem; line-height: 1.8; }
+
+  /* Narrow windows: the "What" column carries the row, so the smaller columns give way. */
+  @media (max-width: 720px) {
+    body { padding: 2rem 1rem 4rem; }
+    [data-philosophy="studio"] { --card-pad: 1.25rem; }
+    .hours span:nth-child(even) { display: none; }   /* 12am 6am 12pm 6pm 12am */
+  }
 </style>
 </head>
 <body>
@@ -430,12 +484,14 @@
         <button id="ph-editorial" aria-pressed="true">Editorial</button>
         <button id="ph-studio" aria-pressed="false">Studio</button>
       </div>
-      <button class="icon-button" id="mode" title="Light or dark"></button>
-      <a class="icon-button" id="download" download
-         title="Download this day as a PDF" aria-label="Download this day as a PDF"></a>
-      <a class="icon-button" id="download-week" download
-         title="Download this week as a PDF" aria-label="Download this week as a PDF"></a>
-      <nav>
+      <div class="toolgroup">
+        <button class="icon-button" id="mode" title="Light or dark"></button>
+        <a class="icon-button" id="download" download
+           title="Download this day as a PDF" aria-label="Download this day as a PDF"></a>
+        <a class="icon-button" id="download-week" download
+           title="Download this week as a PDF" aria-label="Download this week as a PDF"></a>
+      </div>
+      <nav class="toolgroup">
         <button id="prev" title="Previous day">&larr;</button>
         <span id="day-label">&nbsp;</span>
         <button id="next" title="Next day">&rarr;</button>
@@ -489,6 +545,7 @@ function applyPhilosophy(name) {
   el("ph-editorial").setAttribute("aria-pressed", String(name === "editorial"));
   el("ph-studio").setAttribute("aria-pressed", String(name === "studio"));
   store("cadence-philosophy", name);
+  syncThemeColor();
 }
 
 function applyMode(mode) {
@@ -496,6 +553,13 @@ function applyMode(mode) {
   el("mode").innerHTML = mode === "dark" ? SUN : MOON;
   el("mode").title = mode === "dark" ? "Switch to light" : "Switch to dark";
   store("cadence-mode", mode);
+  syncThemeColor();
+}
+
+// The installed app's title bar takes its colour from this meta tag, so it
+// follows the page background instead of sitting on top of it in brand purple.
+function syncThemeColor() {
+  el("theme-color").content = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
 }
 
 const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -548,6 +612,25 @@ function appIcon(app) {
     '" alt="" onerror="this.remove()" />';
 }
 
+function chip(category) {
+  return '<span class="chip" style="--c:' + color(category) + '">' + esc(category) + "</span>";
+}
+
+// A meter and its number as one unit, so the two can never touch.
+function score(value, text, fill) {
+  return '<div class="score"><div class="meter"><i style="width:' + Math.min(Math.max(value, 0), 100) +
+    "%;background:" + fill + '"></i></div><span>' + text + "</span></div>";
+}
+
+// Explicit widths, so the columns line up and stay put while the page polls.
+function head(columns) {
+  return "<colgroup>" + columns.map(function (c) {
+    return c.width ? '<col style="width:' + c.width + '">' : "<col>";
+  }).join("") + "</colgroup><thead><tr>" + columns.map(function (c) {
+    return "<th" + (c.num ? ' class="num"' : "") + ">" + c.label + "</th>";
+  }).join("") + "</tr></thead>";
+}
+
 function longDate(day) {
   const parts = day.split("-").map(Number);
   return new Date(parts[0], parts[1] - 1, parts[2])
@@ -577,8 +660,18 @@ function timeline(sessions) {
     return '<span style="left:' + ((h / 24) * 100) + '%">' + hourLabel(h) + "</span>";
   }).join("");
 
+  // The colours only mean something with a key beside them.
+  const totals = {};
+  sessions.forEach(function (s) { totals[s.category] = (totals[s.category] || 0) + s.duration_sec; });
+  const legend = Object.keys(totals)
+    .filter(function (c) { return c !== "idle" && c !== "away"; })
+    .sort(function (a, b) { return totals[b] - totals[a]; })
+    .map(function (c) {
+      return '<span><i style="background:' + color(c) + '"></i>' + esc(c) + " <b>" + fmt(totals[c]) + "</b></span>";
+    }).join("");
+
   return '<section><h2>The day</h2><div class="timeline">' + blocks +
-    '</div><div class="hours">' + hours + "</div></section>";
+    '</div><div class="hours">' + hours + '</div><div class="legend">' + legend + "</div></section>";
 }
 
 function sessionTable(sessions) {
@@ -593,18 +686,21 @@ function sessionTable(sessions) {
     return "<tr>" +
       '<td class="num muted">' + clock(s.start) + "</td>" +
       '<td class="num">' + fmt(s.duration_sec) + "</td>" +
-      '<td class="num" style="width:170px"><span class="meter"><i style="width:' +
-        Math.min(s.focus_score, 100) + "%;background:" + color(s.category) +
-        '"></i></span><span class="muted" style="margin-left:.6rem">' + Math.round(s.focus_score) + "</span></td>" +
-      '<td><span class="dot" style="background:' + color(s.category) + '"></span>' + esc(s.category) + "</td>" +
-      '<td class="truncate"><span class="with-icon">' + appIcon(s.top_app) +
-        '<span class="label">' + esc(s.top_title || s.top_app) + " " + interruptions + "</span></span></td>" +
+      "<td>" + score(s.focus_score, Math.round(s.focus_score), "var(--accent)") + "</td>" +
+      "<td>" + chip(s.category) + "</td>" +
+      '<td><span class="with-icon">' + appIcon(s.top_app) +
+        '<span class="label">' + esc(s.top_title || s.top_app) + "</span>" + interruptions + "</span></td>" +
       "</tr>";
   }).join("");
 
   return "<section><h2>Sessions</h2><table>" +
-    '<tr><th class="num">Start</th><th class="num">Length</th><th class="num">Focus</th><th>Category</th><th>What</th></tr>' +
-    rows + "</table></section>";
+    head([
+      { label: "Start", num: true, width: "92px" },
+      { label: "Length", num: true, width: "100px" },
+      { label: "Focus", width: "180px" },
+      { label: "Category", width: "150px" },
+      { label: "What" },
+    ]) + "<tbody>" + rows + "</tbody></table></section>";
 }
 
 function categoryTable(categories) {
@@ -616,18 +712,20 @@ function categoryTable(categories) {
   const rows = real.map(function (c) {
     const engagement = pct(c.input_sec, c.duration_sec);
     return "<tr>" +
-      '<td><span class="dot" style="background:' + color(c.category) + '"></span>' + esc(c.category) + "</td>" +
+      "<td>" + chip(c.category) + "</td>" +
       '<td class="num">' + fmt(c.duration_sec) + "</td>" +
       '<td class="num muted">' + fmt(c.input_sec) + "</td>" +
-      '<td class="num" style="width:170px"><span class="meter"><i style="width:' + engagement +
-        "%;background:" + color(c.category) + '"></i></span><span class="muted" style="margin-left:.6rem">' +
-        engagement + "%</span></td>" +
+      "<td>" + score(engagement, engagement + "%", color(c.category)) + "</td>" +
       "</tr>";
   }).join("");
 
   return "<section><h2>Where the time went</h2><table>" +
-    '<tr><th>Category</th><th class="num">Open</th><th class="num">Engaged</th><th class="num">Engagement</th></tr>' +
-    rows + "</table></section>";
+    head([
+      { label: "Category" },
+      { label: "Open", num: true, width: "110px" },
+      { label: "Engaged", num: true, width: "110px" },
+      { label: "Engagement", width: "240px" },
+    ]) + "<tbody>" + rows + "</tbody></table></section>";
 }
 
 function visitList(a) {
@@ -666,11 +764,10 @@ function appTable(apps) {
     const engaged = pct(a.input_sec, a.duration_sec);
 
     return '<tr class="app" data-app="' + esc(a.app) + '" aria-expanded="' + open + '">' +
-        '<td class="truncate"><span class="with-icon">' +
+        '<td><span class="with-icon">' +
           '<span class="chev">&#9654;</span>' +
-          '<span class="dot" style="background:' + color(a.category) + '"></span>' +
           appIcon(a.app) +
-          '<span class="label">' + esc(a.name) + "</span></span></td>" +
+          '<span class="label">' + esc(a.name) + "</span>" + chip(a.category) + "</span></td>" +
         '<td class="num">' + fmt(a.duration_sec) + "</td>" +
         '<td class="num muted">' + visits + (visits > 1 ? " visits" : " visit") + "</td>" +
         '<td class="num muted">' + clock(a.first_seen) + " &ndash; " + (clock(a.last_seen) || "now") + "</td>" +
@@ -682,9 +779,13 @@ function appTable(apps) {
   }).join("");
 
   return "<section><h2>Applications</h2><table>" +
-    '<tr><th></th><th class="num">Total</th><th class="num">Picked up</th>' +
-    '<th class="num">Between</th><th class="num">Engaged</th></tr>' +
-    rows + "</table></section>";
+    head([
+      { label: "Application" },
+      { label: "Total", num: true, width: "110px" },
+      { label: "Picked up", num: true, width: "110px" },
+      { label: "Between", num: true, width: "180px" },
+      { label: "Engaged", num: true, width: "90px" },
+    ]) + "<tbody>" + rows + "</tbody></table></section>";
 }
 
 function listTable(title, items, label, icon) {
@@ -693,7 +794,7 @@ function listTable(title, items, label, icon) {
   const rows = items.map(function (i) {
     const art = icon ? appIcon(i.app) : "";
     return "<tr>" +
-      '<td class="truncate"><span class="with-icon">' + art +
+      '<td><span class="with-icon">' + art +
         '<span class="label">' + esc(label(i)) + "</span></span></td>" +
       '<td class="num">' + fmt(i.duration_sec) + "</td>" +
       '<td class="num muted">' + pct(i.input_sec, i.duration_sec) + "%</td>" +
@@ -701,8 +802,11 @@ function listTable(title, items, label, icon) {
   }).join("");
 
   return "<section><h2>" + title + "</h2><table>" +
-    '<tr><th></th><th class="num">Open</th><th class="num">Engaged</th></tr>' +
-    rows + "</table></section>";
+    head([
+      { label: "Site" },
+      { label: "Open", num: true, width: "110px" },
+      { label: "Engaged", num: true, width: "90px" },
+    ]) + "<tbody>" + rows + "</tbody></table></section>";
 }
 
 /* -- render ---------------------------------------------------------------- */
@@ -725,8 +829,8 @@ function render(data) {
   const s = data.summary;
   el("lede").innerHTML = s.sessions
     ? "<strong>" + s.sessions + "</strong> session" + (s.sessions > 1 ? "s" : "") +
-      " &middot; <strong>" + fmt(s.blocks_sec) + "</strong> in blocks" +
-      " &middot; longest <strong>" + fmt(s.longest_sec) + "</strong>"
+      '<span class="sep">&middot;</span><strong>' + fmt(s.blocks_sec) + "</strong> in blocks" +
+      '<span class="sep">&middot;</span>longest <strong>' + fmt(s.longest_sec) + "</strong>"
     : "Nothing tracked on this day.";
 
   el("content").innerHTML =
