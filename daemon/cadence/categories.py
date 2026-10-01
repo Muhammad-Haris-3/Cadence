@@ -14,9 +14,10 @@ RULES = [
     ("docs",       [r"winword", r"onenote", r"obsidian", r"notion", r"typora"]),
     ("comms",      [r"slack", r"discord", r"teams", r"outlook", r"whatsapp", r"telegram"]),
     ("learning",   [r"youtube.*(tutorial|course|docs|how to)", r"stackoverflow", r"\bdocs\.",
-                    r"developer\.mozilla", r"coursera", r"udemy"]),
+                    r"developer\.mozilla", r"coursera", r"udemy",
+                    r"monkeytype", r"keybr", r"typing\.com"]),   # typing practice is a skill, not a scroll
     ("distraction",[r"youtube", r"netflix", r"instagram", r"twitter", r"\bx\.com", r"reddit",
-                    r"tiktok", r"facebook", r"twitch", r"monkeytype", r"steam"]),
+                    r"tiktok", r"facebook", r"twitch", r"steam"]),
     ("ai",         [r"claude", r"chatgpt", r"openai", r"perplexity", r"gemini"]),
     ("browsing",   [r"chrome\.exe", r"msedge\.exe", r"firefox\.exe", r"brave\.exe"]),
 ]
