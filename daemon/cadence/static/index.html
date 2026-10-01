@@ -312,7 +312,7 @@
     height: 100%;
     border-radius: calc(var(--band-radius) - 2px);
     min-width: 3px;
-    box-shadow: 0 0 0 1px var(--gap-line);  /* keeps neighbours from melting together */
+    box-shadow: 0 0 0 2px var(--gap-line);  /* keeps neighbours from melting together */
     transition: filter .15s ease;
   }
   .timeline .block:hover { filter: brightness(1.12); }
@@ -648,17 +648,38 @@ function written(text, source) {
 function timeline(sessions) {
   if (!sessions.length) return "";
 
+  // The band spans only the hours that were used, not all 24. A night of work
+  // from midnight to five would otherwise fill a fifth of the band, every block
+  // pressed against the next. At least six hours, so a short day isn't blown up.
+  const first = Math.min.apply(null, sessions.map(function (s) { return s.offset_sec; }));
+  const last = Math.max.apply(null, sessions.map(function (s) { return s.offset_sec + s.duration_sec; }));
+  let from = Math.floor(first / 3600), to = Math.min(Math.ceil(last / 3600), 24);
+  while (to - from < 6) {
+    if (to < 24) to++;
+    if (to - from < 6 && from > 0) from--;
+  }
+  const span = (to - from) * 3600;
+
   const blocks = sessions.map(function (s) {
-    const left = (s.offset_sec / 86400) * 100;
-    const width = Math.max((s.duration_sec / 86400) * 100, 0.15);
+    const left = ((s.offset_sec - from * 3600) / span) * 100;
+    const width = Math.max((s.duration_sec / span) * 100, 0.3);
     const label = s.category + " · " + fmt(s.duration_sec) + " · " + (s.top_title || s.top_app);
     return '<div class="block" style="left:' + left + "%;width:" + width + "%;background:" +
       color(s.category) + '" title="' + esc(label) + '"></div>';
   }).join("");
 
-  const hours = [0, 3, 6, 9, 12, 15, 18, 21, 24].map(function (h) {
-    return '<span style="left:' + ((h / 24) * 100) + '%">' + hourLabel(h) + "</span>";
+  // One label per hour, or per two hours on a long day so labels keep their distance.
+  const step = to - from <= 12 ? 1 : 2;
+  const marks = [];
+  for (let h = from; h <= to; h += step) marks.push(h);
+  if (marks[marks.length - 1] !== to) {
+    if (to - marks[marks.length - 1] < step) marks.pop();   // or the last two labels touch
+    marks.push(to);
+  }
+  const hours = marks.map(function (h) {
+    return '<span style="left:' + (((h - from) / (to - from)) * 100) + '%">' + hourLabel(h) + "</span>";
   }).join("");
+  const grid = "background-size:" + (100 / (to - from)) + "% 100%";
 
   // The colours only mean something with a key beside them.
   const totals = {};
@@ -670,7 +691,7 @@ function timeline(sessions) {
       return '<span><i style="background:' + color(c) + '"></i>' + esc(c) + " <b>" + fmt(totals[c]) + "</b></span>";
     }).join("");
 
-  return '<section><h2>The day</h2><div class="timeline">' + blocks +
+  return '<section><h2>The day</h2><div class="timeline" style="' + grid + '">' + blocks +
     '</div><div class="hours">' + hours + '</div><div class="legend">' + legend + "</div></section>";
 }
 
