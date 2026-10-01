@@ -422,6 +422,24 @@ def build_app(token: str):
             headers["Access-Control-Allow-Origin"] = origin
         return JSONResponse(payload, headers=headers)
 
+    @app.options("/api/scroll/{day}")
+    def scroll_preflight(day: str, request: Request):
+        """Chrome asks before a public site may reach a loopback address.
+
+        Answered yes only for allowlisted origins; everyone else gets a bare
+        response, which the browser treats as no.
+        """
+        origin = request.headers.get("origin", "")
+        if origin not in config.scroll_origins():
+            return Response(status_code=403)
+        return Response(status_code=204, headers={
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Methods": "GET",
+            "Access-Control-Allow-Private-Network": "true",
+            "Access-Control-Max-Age": "86400",
+            "Vary": "Origin",
+        })
+
     @app.get("/api/icon")
     def app_icon(app: str):
         """The real icon for an application, extracted from its executable."""

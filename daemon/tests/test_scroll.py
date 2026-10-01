@@ -67,6 +67,15 @@ def main():
     results.append(check("a deployed origin can be allowlisted in a file",
                          deployed.headers.get("access-control-allow-origin"), "https://small-steps.vercel.app"))
 
+    print("\npreflight")
+    pre = next(r for r in web.build_app("t").routes
+               if getattr(r, "path", "") == "/api/scroll/{day}" and "OPTIONS" in r.methods)
+    yes = pre.endpoint(DAY, FakeRequest("https://small-steps.vercel.app"))
+    no = pre.endpoint(DAY, FakeRequest("https://evil.example"))
+    results.append(check("an allowlisted site may reach the laptop",
+                         yes.headers.get("access-control-allow-private-network"), "true"))
+    results.append(check("any other site is refused", no.status_code, 403))
+
     print(f"\n{sum(results)}/{len(results)} passed")
     return 0 if all(results) else 1
 
