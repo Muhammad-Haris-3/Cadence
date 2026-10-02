@@ -397,7 +397,7 @@ def build_app(token: str):
         )
 
     @app.get("/api/scroll/{day}")
-    def get_scroll(day: str, request: Request):
+    def get_scroll(day: str, request: Request, start_hour: int = 0):
         """Distraction totals for Small Steps -- the only cross-origin read.
 
         Every other endpoint stays same-origin. This one answers any caller (a
@@ -408,11 +408,13 @@ def build_app(token: str):
             datetime.strptime(day, "%Y-%m-%d")
         except ValueError:
             raise HTTPException(status_code=400, detail="day must be YYYY-MM-DD")
+        if not 0 <= start_hour <= 23:
+            raise HTTPException(status_code=400, detail="start_hour must be 0-23")
 
         conn = db.read_connection()
         try:
             _ensure_built(conn, day)
-            payload = scroll.scroll_day(conn, day)
+            payload = scroll.scroll_day(conn, day, start_hour)
         finally:
             conn.close()
 

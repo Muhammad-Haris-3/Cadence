@@ -93,6 +93,12 @@ class Tracker:
         self._prev_input_tick = tick_now
 
         window = foreground_window()
+        if is_idle and window is not None and window["app"] in config.BROWSER_APPS:
+            # Watching a video means no mouse or keys for long stretches. If the tab in
+            # front is playing sound, that's still YouTube time, not time away.
+            tab = TAB_STATE.get_fresh()
+            is_idle = not (tab and tab.audible)
+
         if window is None:
             app, exe, title = LOCKED_APP, None, ""
         elif is_idle:

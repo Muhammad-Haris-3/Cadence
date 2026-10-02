@@ -54,6 +54,29 @@ def main():
     results.append(check("a day Cadence never ran is not zero scrolling, it's untracked",
                          scroll.scroll_day(conn, "2026-08-01")["tracked"], False))
 
+    print("\na day that starts at 8 am")
+    nxt = "2026-08-28"
+    conn.execute(
+        "INSERT INTO segments (started_at, day, app, title, is_idle, duration_sec, active_sec, input_sec, category, host) "
+        "VALUES (?, ?, 'chrome.exe', '', 0, 1200, 1200, 0, 'distraction', 'www.youtube.com')",
+        (f"{nxt}T01:00:00", nxt),
+    )
+    conn.execute(
+        "INSERT INTO segments (started_at, day, app, title, is_idle, duration_sec, active_sec, input_sec, category, host) "
+        "VALUES (?, ?, 'chrome.exe', '', 0, 600, 600, 0, 'distraction', 'www.youtube.com')",
+        (f"{nxt}T09:00:00", nxt),
+    )
+    conn.commit()
+    his = scroll.scroll_day(conn, DAY, start_hour=8)
+    results.append(check("1 am next day belongs to the evening before",
+                         his["distraction_sec"], 90 * 60 + 600 + 1200))
+    results.append(check("and lands in its clock hour", his["by_hour"][1], 1200))
+    results.append(check("9 am next day is the next day's", his["by_hour"][9], 0))
+    results.append(check("sites count only the day's part",
+                         his["top"][0], {"name": "youtube.com", "sec": 90 * 60 + 1200}))
+    results.append(check("start_hour 0 is the calendar day as before",
+                         scroll.scroll_day(conn, DAY)["distraction_sec"], 90 * 60 + 600))
+
     print("\norigins")
     route = next(r for r in web.build_app("t").routes if getattr(r, "path", "") == "/api/scroll/{day}")
     allowed = route.endpoint(DAY, FakeRequest("http://localhost:3000"))

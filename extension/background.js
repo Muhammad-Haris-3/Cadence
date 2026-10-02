@@ -47,13 +47,14 @@ async function reportActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, windowId: win.id });
   if (!tab) return post({ focused: false });
 
-  post({ url: tab.url || "", title: tab.title || "", focused: true });
+  // audible: a video or song is playing, so no mouse input still means watching, not idle.
+  post({ url: tab.url || "", title: tab.title || "", focused: true, audible: !!tab.audible });
 }
 
 chrome.tabs.onActivated.addListener(() => reportActiveTab());
 
 chrome.tabs.onUpdated.addListener((_id, info, tab) => {
-  if (tab.active && (info.url || info.title || info.status === "complete")) reportActiveTab();
+  if (tab.active && (info.url || info.title || info.status === "complete" || info.audible !== undefined)) reportActiveTab();
 });
 
 chrome.windows.onFocusChanged.addListener((windowId) => {

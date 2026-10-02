@@ -129,6 +129,24 @@ def main():
     row = conn.execute("SELECT app, url FROM segments ORDER BY id DESC LIMIT 1").fetchone()
     results.append(check("non-browser segment gets no url", row["url"], None))
 
+    print("\nwatching vs idle")
+    tracker_mod.idle_millis = lambda: 10 * 60 * 1000  # no input for ten minutes
+    tracker_mod.foreground_window = lambda: Window(app="chrome.exe", exe="C:/chrome.exe", title="video", pid=1)
+    watcher = Tracker(conn, poll=1.0, idle_threshold=60, flush=999)
+
+    post({"url": "https://www.youtube.com/watch?v=abc", "title": "video", "audible": True})
+    watcher.tick()
+    watcher._flush(closing=True)
+    row = conn.execute("SELECT app, is_idle, host FROM segments ORDER BY id DESC LIMIT 1").fetchone()
+    results.append(check("a playing video with no input is watching", (row["app"], row["is_idle"]), ("chrome.exe", 0)))
+    results.append(check("and it's YouTube time", row["host"], "www.youtube.com"))
+
+    post({"url": "https://www.youtube.com/watch?v=abc", "title": "video", "audible": False})
+    watcher.tick()
+    watcher._flush(closing=True)
+    row = conn.execute("SELECT app, is_idle FROM segments ORDER BY id DESC LIMIT 1").fetchone()
+    results.append(check("a silent tab with no input is idle", (row["app"], row["is_idle"]), ("__idle__", 1)))
+
     print(f"\n{sum(results)}/{len(results)} passed\n")
     return 0 if all(results) else 1
 

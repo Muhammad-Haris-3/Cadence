@@ -31,6 +31,7 @@ class Tab:
     host: str
     title: str
     reported_at: float
+    audible: bool = False  # the tab is playing sound (a video you're watching)
 
     def is_fresh(self, now: Optional[float] = None) -> bool:
         return (now or time.time()) - self.reported_at <= config.TAB_MAX_AGE_SECONDS
@@ -60,6 +61,7 @@ class TabReport(BaseModel):
     url: str = ""
     title: str = ""
     focused: bool = True
+    audible: bool = False
 
 
 def build_app(token: str, state: TabState = STATE) -> FastAPI:
@@ -89,7 +91,7 @@ def build_app(token: str, state: TabState = STATE) -> FastAPI:
             state.set(None)
             return {"ok": True, "tracked": False}
 
-        state.set(Tab(url=url, host=host, title=report.title or "", reported_at=time.time()))
+        state.set(Tab(url=url, host=host, title=report.title or "", reported_at=time.time(), audible=report.audible))
         return {"ok": True, "tracked": True, "host": host}
 
     @app.get("/health")
