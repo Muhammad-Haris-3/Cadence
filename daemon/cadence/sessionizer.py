@@ -32,6 +32,17 @@ def _is_gap(segment) -> bool:
     return segment["app"] in IDLE_APPS or (segment["category"] or "") in IDLE_CATEGORIES
 
 
+def _gap_seconds(segment) -> float:
+    """Wall-clock length of a gap. duration_sec stops counting while the
+    machine sleeps, so a locked night can read as 30 seconds."""
+    try:
+        wall = (datetime.fromisoformat(segment["ended_at"])
+                - datetime.fromisoformat(segment["started_at"])).total_seconds()
+    except (TypeError, ValueError):
+        wall = 0.0
+    return max(segment["duration_sec"], wall)
+
+
 class _Session:
     """Accumulator for one block of work."""
 
@@ -127,7 +138,7 @@ def build(segments) -> list:
 
         # Rule 1 -- a long gap ends the session; a short one is absorbed.
         if _is_gap(segment):
-            if segment["duration_sec"] >= config.IDLE_BREAK_SECONDS:
+            if _gap_seconds(segment) >= config.IDLE_BREAK_SECONDS:
                 close()
                 index += 1
                 continue

@@ -645,7 +645,7 @@ function written(text, source) {
   return '<div class="written">' + esc(text) + '<span class="attrib">' + attrib + "</span></div>";
 }
 
-function timeline(sessions) {
+function timeline(sessions, categories) {
   if (!sessions.length) return "";
 
   // The band spans only the hours that were used, not all 24. A night of work
@@ -681,9 +681,10 @@ function timeline(sessions) {
   }).join("");
   const grid = "background-size:" + (100 / (to - from)) + "% 100%";
 
-  // The colours only mean something with a key beside them.
+  // The colours only mean something with a key beside them. Totals come from
+  // segments, so a category done in short bursts inside another session counts.
   const totals = {};
-  sessions.forEach(function (s) { totals[s.category] = (totals[s.category] || 0) + s.duration_sec; });
+  categories.forEach(function (c) { totals[c.category] = c.duration_sec; });
   const legend = Object.keys(totals)
     .filter(function (c) { return c !== "idle" && c !== "away"; })
     .sort(function (a, b) { return totals[b] - totals[a]; })
@@ -856,7 +857,7 @@ function render(data) {
 
   el("content").innerHTML =
     written(data.written, data.written_source) +
-    timeline(data.sessions) +
+    timeline(data.sessions, data.categories) +
     sessionTable(data.sessions) +
     categoryTable(data.categories) +
     appTable(data.apps) +

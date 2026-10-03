@@ -55,6 +55,11 @@ check("short idle is absorbed", len(s), 1)
 check("absorbed idle counts toward duration", s[0].duration, 1320.0)
 check("absorbed idle does not count as active", s[0].active, 1200.0)
 
+asleep = seg("__locked__", "away", 31, active=0, inp=0)
+asleep["ended_at"] = "2026-08-27T19:00:00"  # nine hours locked, 31s counted
+s = sessionizer.build([code(600), asleep, code(600)])
+check("a long sleep splits even when duration_sec is tiny", len(s), 2)
+
 print("\nrule 2 -- category changes")
 s = sessionizer.build([code(600), seg("slack.exe", "comms", 30), code(600)])
 check("brief excursion keeps one session", len(s), 1)
